@@ -1,0 +1,14 @@
+envs/*
+data/*
+.ipynb_checkpoints
+.ipynb_checkpoints/*
+.pytest_cache
+.pytest_cache/*
+*.egg-info
+*.parquet
+*.feather
+*.csv
+*.pickle
+*.db
+__pycache__/*
+__pycache__

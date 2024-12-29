@@ -1,0 +1,27 @@
+name: backtestenv
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  # Versão específica do Python
+  - python=3.12.8
+  
+  # Principais bibliotecas para análise de dados e cálculos numéricos
+  - pandas=2.2.3
+  - numpy=1.26.4
+  
+  # Biblioteca para acessar dados financeiros
+  - yfinance=0.2.28
+  
+  # Suporte a formatos avançados de armazenamento de dados
+  - pyarrow=17.0.0
+  - tables=3.9.2
+  
+  # Ferramentas para visualização de dados
+  - matplotlib=3.9.2
+  
+  # Ambiente interativo para desenvolvimento
+  - notebook=7.2.2
+  
+  # Framework para testes automatizados
+  - pytest=7.4.4
