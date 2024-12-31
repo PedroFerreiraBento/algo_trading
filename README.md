@@ -56,6 +56,10 @@ cd forex-backtester
 conda env create -f environment.yml
 conda activate backtest-env
 ```
+```bash
+conda env update --name backtest-env --file environment.yml --prune
+
+```
 
 ---
 

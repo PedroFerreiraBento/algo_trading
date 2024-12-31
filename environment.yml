@@ -25,3 +25,10 @@ dependencies:
   
   # Framework para testes automatizados
   - pytest=7.4.4
+
+  - pip
+
+  - pip:
+    # Library to connect with MetaTrader 5 trading platform
+    - MetaTrader5==5.0.4738 
+    - pydantic==2.10.4

@@ -4,8 +4,8 @@ setup(
     name="algo_trading",  # Nome do pacote
     version="0.1.0",  # Versão inicial
     description="A Python library for managing data storage and yfinance integration.",
-    author="Seu Nome",
-    author_email="seu_email@example.com",
+    author="Pedro Bento",
+    author_email="pedro.techfinance@gmail.com",
     url="https://github.com/seu_usuario/AlgoTrading",  # Repositório no GitHub
     packages=find_packages(),  # Detecta automaticamente os pacotes
     install_requires=[
