@@ -60,7 +60,7 @@ def test_bid_ask_validation(mock_symbol):
 def test_volume_min_greater_than_zero(mock_symbol):
     """Test that volume_min must be greater than 0."""
     mock_symbol.volume_min = -0.01  # Valor inválido
-    with pytest.raises(ValueError, match="Input should be greater than 0"):
+    with pytest.raises(ValueError, match="The field volume_min must be greater than 0"):
         MqlSymbolInfo.parse_symbol(mock_symbol)
         
 def test_optional_fields_with_defaults(mock_symbol):

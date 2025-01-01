@@ -1185,6 +1185,12 @@ class MqlTradeResult(BaseModel):
 
         return cls.model_validate(dict_result)
 
+    @field_validator("volume")
+    def __validate_volume(cls, value):
+        if value is not None and value <= 0:
+            raise ValueError("Volume must be greater than zero.")
+        return value
+
     @model_validator(mode="after")
     def __validate_bid(cls, values):
         """Ensure bid is less than or equal to ask."""
@@ -1208,12 +1214,6 @@ class MqlTradeResult(BaseModel):
             if ask is not None and price > ask:
                 raise ValueError("Price must be less than or equal to ask")
         return values
-
-    @field_validator("volume")
-    def __validate_volume(cls, value):
-        if value is not None and value <= 0:
-            raise ValueError("Volume must be greater than zero.")
-        return value
 
 
 class MqlPositionInfo(BaseModel):
@@ -1437,130 +1437,133 @@ class MqlTradeOrder(BaseModel):
         self.__dict__.update(updated_data.__dict__)
 
     @classmethod
-    def parse_order(cls, order: mt5.TradeOrder) -> "MqlTradeOrder":
-        """Parse a mt5.TradeOrder to MqlTradeOrder
+    def parse_order(cls, order: "mt5.TradeOrder") -> "MqlTradeOrder":
+        """Parse a mt5.TradeOrder object to MqlTradeOrder.
 
         Args:
-            order (mt5.TradeOrder): mt5 order object
+            order (mt5.TradeOrder): mt5 order object.
 
         Raises:
-            NotExpectedParseType: Type not expected
+            ValueError: If required attributes are missing.
 
         Returns:
-            MqlTradeOrder: object declared
+            MqlTradeOrder: Parsed and validated MqlTradeOrder object.
         """
-        try:
-            # Check object type
-            if not isinstance(order, mt5.TradeOrder):
-                raise NotExpectedParseType
+        required_attrs = [
+            "ticket", "time_setup", "time_setup_msc", "time_done", "time_done_msc",
+            "time_expiration", "type", "type_time", "type_filling", "state", "magic",
+            "position_id", "position_by_id", "reason", "volume_initial", "volume_current",
+            "price_open", "price_current", "sl", "tp", "price_stoplimit", "symbol",
+            "comment", "external_id"
+        ]
 
-            dict_order = {
-                "ticket": order.ticket,
-                "time_setup": order.time_setup,
-                "time_setup_msc": order.time_setup_msc,
-                "time_done": order.time_done,
-                "time_done_msc": order.time_done_msc,
-                "time_expiration": order.time_expiration,
-                "type": order.type,
-                "type_time": order.type_time,
-                "type_filling": order.type_filling,
-                "state": order.state,
-                "magic": order.magic,
-                "position_id": order.position_id,
-                "position_by_id": order.position_by_id,
-                "reason": order.reason,
-                "volume_initial": order.volume_initial,
-                "volume_current": order.volume_current,
-                "price_open": order.price_open,
-                "sl": order.sl,
-                "tp": order.tp,
-                "price_current": order.price_current,
-                "price_stoplimit": order.price_stoplimit,
-                "symbol": order.symbol,
-                "comment": order.comment,
-                "external_id": order.external_id,
-            }
-
-        except NotExpectedParseType as e:
-            raise NotExpectedParseType(
-                f"{cls.__name__} expected mt5.TradeOrder not {order.__class__.__name__}"
+        # Ensure the order object has the necessary attributes
+        if not all(hasattr(order, attr) for attr in required_attrs):
+            raise ValueError(
+                f"Expected an mt5.TradeOrder object with all required attributes, got {type(order).__name__}"
             )
-        return cls(**dict_order)
 
-    @field_validator(
-        "position_id",
-        "position_by_id",
-        "magic",
-        "price_stoplimit",
-        "sl",
-        "tp",
-        mode="before",
-    )
-    def __validate_optional_values(cls, value: int, values: dict):
+        # Build the dictionary from the mt5.TradeOrder attributes
+        dict_order = {
+            "ticket": order.ticket,
+            "time_setup": order.time_setup,
+            "time_setup_msc": order.time_setup_msc,
+            "time_done": order.time_done,
+            "time_done_msc": order.time_done_msc,
+            "time_expiration": order.time_expiration,
+            "type": order.type,
+            "type_time": order.type_time,
+            "type_filling": order.type_filling,
+            "state": order.state,
+            "magic": order.magic,
+            "position_id": order.position_id,
+            "position_by_id": order.position_by_id,
+            "reason": order.reason,
+            "volume_initial": order.volume_initial,
+            "volume_current": order.volume_current,
+            "price_open": order.price_open,
+            "price_current": order.price_current,
+            "sl": order.sl,
+            "tp": order.tp,
+            "price_stoplimit": order.price_stoplimit,
+            "symbol": order.symbol,
+            "comment": order.comment,
+            "external_id": order.external_id,
+        }
+
+        # Validate and return the model
+        return cls.model_validate(dict_order)
+
+    @field_validator("position_id", "position_by_id", "magic", "price_stoplimit", "sl", "tp", mode="before")
+    def __validate_optional_values(cls, value: int):
         if value == 0:
             return None
-
         return value
-
+    
     @field_validator("time_setup", "time_done", "time_expiration", mode="before")
-    def __validate_datetimes(cls, value: int, values: dict):
+    def __validate_datetimes(cls, value: int):
         if value == 0:
             return None
 
-        if value is not None and type(value) == int:
+        if isinstance(value, int):
             value = pd.to_datetime(value, unit="s", utc=True).to_pydatetime()
 
         return value
 
     @field_validator("time_setup_msc", "time_done_msc", mode="before")
-    def __validate_datetimes_msc(cls, value: int, values: dict):
+    def __validate_datetimes_msc(cls, value: int):
         if value == 0:
             return None
 
-        if value is not None and type(value) == int:
+        if isinstance(value, int):
             value = pd.to_datetime(value, unit="ms", utc=True).to_pydatetime()
 
         return value
+    
+    @model_validator(mode="after")
+    def __validate_expiration(cls, values):
+        # Acessa os atributos da instância
+        time_expiration = getattr(values, "time_expiration", None)
+        time_setup = getattr(values, "time_setup", None)
 
-    @field_validator("time_expiration")
-    def __validate_expiration(cls, value: int, values: dict):
-        if value == 0:
-            return None
+        # Define time_expiration como None se for igual a 0
+        if time_expiration == 0:
+            values.time_expiration = None
 
+        # Valida se time_setup existe
+        if time_setup is None:
+            raise ValueError("Invalid setup time: time_setup is required")
+
+        # Valida se time_expiration é maior que time_setup
         if (
-            value is not None
-            and type(value) == datetime
-            and value <= values["time_setup"]
+            values.time_expiration is not None
+            and isinstance(values.time_expiration, datetime)
+            and values.time_expiration <= time_setup
         ):
-            raise ValueError("Invalid expiration time")
+            raise ValueError("Invalid expiration time: time_expiration must be after time_setup")
+
+        # Retorna a instância corrigida
+        return values
 
     @model_validator(mode="after")
-    def __validate_prices(cls, values: dict) -> dict:
-        """Validate the stop loss and take profit positions
+    def __validate_prices(cls, values: dict):
+        """Validate the stop loss and take profit positions"""
 
-        Args:
-            values (dict): class attributes
-
-        Returns:
-            dict: class attributes
-        """
-
-        sl = values.get("sl", 0)
-        tp = values.get("tp", 0)
-        stoplimit = values.get("price_stoplimit", 0)
+        sl = getattr(values, "sl", 0)
+        tp = getattr(values, "tp", 0)
+        stoplimit = getattr(values, "price_stoplimit", 0)
 
         # Check if stop or take profit is defined
         if sl or tp or stoplimit:
-            price = values.get("price_open", 0)
+            price = getattr(values, "price_open", 0)
+            order_type = getattr(values, "type", None)
 
-            order_type = values.get("type")
-
-            # Validate the stoplimit, sl and tp
+            # Valida os preços usando uma função externa
             validate_prices(
                 price=price, sl=sl, tp=tp, stoplimit=stoplimit, order_type=order_type
             )
-        return values
 
+        return values
 
 class MqlTradeDeal(BaseModel):
     """Trade Deal
@@ -1654,7 +1657,6 @@ class MqlTradeDeal(BaseModel):
 
         # Validate and return the model
         return cls.model_validate(dict_deal)
-
 
     @field_validator("time", mode="before")
     def __validate_datetimes(cls, value: int, values: dict):
@@ -1866,9 +1868,9 @@ class MqlAccountInfo(BaseModel):
         dict_account.update(
             {
                 "is_backtest_account": False,
-                "orders": cls.get_orders(),
-                "positions": cls.get_positions(),
-                "history_deals": cls.get_history_deals(),
+                "orders": cls.__get_updated_orders(),
+                "positions": cls.__get_updated_positions(),
+                "history_deals": cls.__get_updated_history_deals(),
             }
         )
 
@@ -1876,7 +1878,7 @@ class MqlAccountInfo(BaseModel):
         return cls.model_validate(dict_account)
 
     @classmethod
-    def get_positions(cls):
+    def __get_updated_positions(cls):
         # Get open positions on MetaTrader5
         positions = [
             MqlPositionInfo.parse_position(position) for position in mt5.positions_get()
@@ -1885,14 +1887,14 @@ class MqlAccountInfo(BaseModel):
         return positions
 
     @classmethod
-    def get_orders(cls):
+    def __get_updated_orders(cls):
         # Get positioned orders on MetaTrader5
         orders = [MqlTradeOrder.parse_order(orders) for orders in mt5.orders_get()]
 
         return orders
 
     @classmethod
-    def get_history_deals(cls):
+    def __get_updated_history_deals(cls):
         deals = [
             MqlTradeDeal.parse_deal(deal)
             for deal in mt5.history_deals_get(
@@ -1912,15 +1914,15 @@ class MqlAccountInfo(BaseModel):
 
     def update_positions(self) -> None:
         # Get open positions on MetaTrader5
-        self.positions = self.get_positions()
+        self.positions = self.__get_updated_positions()
 
     def update_orders(self) -> None:
         # Get positioned orders on MetaTrader5
-        self.orders = self.get_orders()
+        self.orders = self.__get_updated_orders()
 
     def update_history_deals(self) -> None:
         # Get history deals on MetaTrader5
-        self.history_deals = self.get_history_deals()
+        self.history_deals = self.__get_updated_history_deals()
 
     @model_validator(mode="after")
     def __validate_create_balance_deal(cls, values):
@@ -1958,9 +1960,9 @@ class MqlAccountInfo(BaseModel):
 
     @model_validator(mode="after")
     def __validate_update_balance_value(cls, values):
-        print([deal.profit for deal in values.history_deals])
-        
         # Calcula o balance com base no histórico de deals
         balance = sum(deal.profit for deal in values.history_deals)
         values.balance = balance
         return values
+    
+    

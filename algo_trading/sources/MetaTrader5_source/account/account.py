@@ -1,3 +1,60 @@
+"""
+Account Management for MetaTrader5
+
+This module provides a high-level interface for managing live and backtest trading accounts in MetaTrader5.
+It includes functionalities to log into live accounts, simulate backtest accounts, update account data,
+and retrieve the current account's state.
+
+Classes:
+--------
+- Account:
+    Manages the interaction with MetaTrader5 accounts, both live and simulated backtest accounts.
+
+Main Features:
+--------------
+1. **Live Account Management**:
+    - Log into a live MetaTrader5 account using the `login_live` method.
+    - Retrieve updated account information with `update_live_account_data`.
+    - Log out from the current live session using `logout`.
+
+2. **Backtest Account Simulation**:
+    - Create a simulated backtest account using the `login_backtest` method.
+    - Use simulated account data for strategy testing and experimentation.
+
+3. **Account Data Retrieval**:
+    - Access current live or backtest account data via `get_current_account_data`.
+
+Dependencies:
+-------------
+- MetaTrader5 Python module (imported as `mt5`).
+- Custom models and utilities from `algo_trading.sources.MetaTrader5_source`.
+
+Usage Example:
+--------------
+```python
+from algo_trading.sources.MetaTrader5_source.account.account import Account
+
+# Initialize account manager
+account_manager = Account()
+
+# Login to a live account
+live_account_data = account_manager.login_live(
+    login=123456, server="demo.server.com", password="password123"
+)
+
+# Update live account data
+account_manager.update_live_account_data()
+
+# Create a backtest account
+backtest_account_data = account_manager.login_backtest(balance=10000)
+
+# Retrieve current account data
+current_data = account_manager.get_current_account_data(backtest=True)
+
+# Logout from live account
+account_manager.logout()
+"""
+
 import logging
 from typing import Optional
 
