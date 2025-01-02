@@ -182,50 +182,6 @@ def test_login_backtest_success(account):
     assert backtest_data.currency == "USD"
 
 
-def test_get_current_account_data(account):
-    # Configura conta ao vivo
-    live_data = MqlAccountInfo(
-        login=123456,
-        trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
-        leverage=100,
-        limit_orders=200,
-        margin_so_mode=ENUM_ACCOUNT_STOPOUT_MODE.ACCOUNT_STOPOUT_MODE_PERCENT,
-        trade_allowed=True,
-        trade_expert=True,
-        margin_mode=ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING,
-        currency_digits=2,
-        fifo_close=False,
-        balance=10000.0,
-        credit=0.0,
-        profit=0.0,
-        equity=10000.0,
-        margin=0.0,
-        margin_free=10000.0,
-        margin_level=0.0,
-        margin_so_call=50.0,
-        margin_so_so=30.0,
-        margin_initial=0.0,
-        margin_maintenance=0.0,
-        assets=0.0,
-        liabilities=0.0,
-        commission_blocked=0.0,
-        name="Demo Account",
-        server="demo.server.com",
-        currency="USD",
-        company="MetaTrader Company",
-    )
-    account.live_account_data = live_data
-
-    # Recupera dados ao vivo
-    current_data = account.get_current_account_data()
-    assert current_data == live_data
-
-    # Configura conta de backtest
-    backtest_data = account.login_backtest(balance=5000, leverage=100)
-    current_data = account.get_current_account_data(backtest=True)
-    assert current_data == backtest_data
-
-
 @patch("algo_trading.sources.MetaTrader5_source.account.account.mt5")
 def test_login_live_failure(mock_mt5, account):
     # Simula falha no método mt5.initialize

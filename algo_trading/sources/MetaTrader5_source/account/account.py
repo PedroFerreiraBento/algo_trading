@@ -21,9 +21,6 @@ Main Features:
     - Create a simulated backtest account using the `login_backtest` method.
     - Use simulated account data for strategy testing and experimentation.
 
-3. **Account Data Retrieval**:
-    - Access current live or backtest account data via `get_current_account_data`.
-
 Dependencies:
 -------------
 - MetaTrader5 Python module (imported as `mt5`).
@@ -47,9 +44,6 @@ account_manager.update_live_account_data()
 
 # Create a backtest account
 backtest_account_data = account_manager.login_backtest(balance=10000)
-
-# Retrieve current account data
-current_data = account_manager.get_current_account_data(backtest=True)
 
 # Logout from live account
 account_manager.logout()
@@ -103,7 +97,6 @@ class Account:
 
         return self.live_account_data
 
-    @decorator_validate_mt5_connection
     def logout(self) -> None:
         """Log out from the current live session."""
         mt5.shutdown()
@@ -167,14 +160,3 @@ class Account:
         self.backtest_account_data = backtest_account
         self.logger.info("Backtest account successfully created.")
         return backtest_account
-
-    def get_current_account_data(self, backtest: bool = False) -> Optional[MqlAccountInfo]:
-        """Get data for the current account (live or backtest)."""
-        if backtest:
-            if not self.backtest_account_data:
-                self.logger.warning("No backtest account is currently active.")
-            return self.backtest_account_data
-        else:
-            if not self.live_account_data:
-                self.logger.warning("No live account is currently active.")
-            return self.live_account_data

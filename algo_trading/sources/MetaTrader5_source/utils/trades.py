@@ -1,11 +1,11 @@
-from AlgorithmicTrading.models.metatrader import (
+from algo_trading.sources.MetaTrader5_source.models.metatrader import (
     ENUM_POSITION_TYPE,
     MqlTick,
     MqlSymbolInfo,
     MqlTradeOrder,
 )
-from AlgorithmicTrading.rates import Rates
-from AlgorithmicTrading.utils.exceptions import PairNotAvailable
+from algo_trading.sources.MetaTrader5_source.rates import Rates
+from algo_trading.sources.MetaTrader5_source.utils.exceptions import PairNotAvailable
 import datetime
 import pandas as pd
 from typing import List

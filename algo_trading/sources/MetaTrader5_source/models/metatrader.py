@@ -1,17 +1,64 @@
-from algo_trading.sources.MetaTrader5_source.utils.metatrader import (
-    validate_mt5_ulong_size,
-)
-from algo_trading.sources.MetaTrader5_source.utils.exceptions import NotExpectedParseType
-from algo_trading.sources.MetaTrader5_source.utils.dates import get_timestamp_ms
+# Importações de bibliotecas padrão
+from datetime import datetime, timezone, timedelta  # Manipulação de datas e fusos horários
+import sys # Para checar o que já foi importado
 
-import MetaTrader5 as mt5
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
-from typing import Optional, List
-from enum import IntEnum, auto
-from datetime import datetime, timezone, timedelta
-import pytz
-import numpy as np
-import pandas as pd
+# Importações de terceiros
+import MetaTrader5 as mt5  # Biblioteca MetaTrader5 para integração com a plataforma
+import numpy as np  # Operações numéricas e manipulação de arrays
+import pandas as pd  # Manipulação e análise de dados em formato tabular
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator, Field  # Validação e modelagem de dados com Pydantic
+
+# Tipagem estática
+from typing import Optional, List, TYPE_CHECKING, Type  # Tipos e suporte para forward references
+
+# Enumeradores
+from enum import IntEnum, auto  # Criação de enumeradores para constantes
+
+# Importações locais (módulo interno)
+from algo_trading.sources.MetaTrader5_source.utils.metatrader import validate_mt5_ulong_size  # Validador para dados do MetaTrader5
+from algo_trading.sources.MetaTrader5_source.utils.exceptions import NotExpectedParseType  # Exceção personalizada para parsing
+from algo_trading.sources.MetaTrader5_source.utils.dates import get_timestamp_ms  # Função utilitária para timestamps
+
+
+    
+if TYPE_CHECKING:
+    from algo_trading.sources.MetaTrader5_source.rates.rates import Rates
+
+
+class ENUM_COPY_TICKS(IntEnum):
+    """Tick Copy Types
+
+    COPY_TICKS defines the types of ticks that can be requested using the functions copy_ticks_from() and copy_ticks_range().
+
+    Args:
+        COPY_TICKS_ALL (int): All ticks.
+        COPY_TICKS_INFO (int): Ticks containing changes in Bid and/or Ask prices.
+        COPY_TICKS_TRADE (int): Ticks containing changes in Last price and/or Volume.
+    """
+    COPY_TICKS_ALL: int = mt5.COPY_TICKS_ALL
+    COPY_TICKS_INFO: int = mt5.COPY_TICKS_INFO
+    COPY_TICKS_TRADE: int = mt5.COPY_TICKS_TRADE
+
+class ENUM_TICK_FLAGS(IntEnum):
+    """Tick Flags
+
+    TICK_FLAG defines possible flags for ticks. These flags are used to describe the ticks received by the functions copy_ticks_from() and copy_ticks_range().
+
+    Args:
+        TICK_FLAG_BID (int): Indicates a change in the Bid price.
+        TICK_FLAG_ASK (int): Indicates a change in the Ask price.
+        TICK_FLAG_LAST (int): Indicates a change in the Last price.
+        TICK_FLAG_VOLUME (int): Indicates a change in Volume.
+        TICK_FLAG_BUY (int): Indicates a change in the last Buy price.
+        TICK_FLAG_SELL (int): Indicates a change in the last Sell price.
+    """
+    TICK_FLAG_BID: int = mt5.TICK_FLAG_BID
+    TICK_FLAG_ASK: int = mt5.TICK_FLAG_ASK
+    TICK_FLAG_LAST: int = mt5.TICK_FLAG_LAST
+    TICK_FLAG_VOLUME: int = mt5.TICK_FLAG_VOLUME
+    TICK_FLAG_BUY: int = mt5.TICK_FLAG_BUY
+    TICK_FLAG_SELL: int = mt5.TICK_FLAG_SELL
+
 
 
 class ENUM_TRADE_REQUEST_ACTIONS(IntEnum):
@@ -414,6 +461,7 @@ class ENUM_TIMEFRAME(IntEnum):
         TIMEFRAME_M5 (int): 5 minutes
         TIMEFRAME_M6 (int): 6 minutes
         TIMEFRAME_M10 (int): 10 minutes
+        TIMEFRAME_M12 (int): 12 minutes
         TIMEFRAME_M15 (int): 15 minutes
         TIMEFRAME_M20 (int): 20 minutes
         TIMEFRAME_M30 (int): 30 minutes
@@ -425,8 +473,8 @@ class ENUM_TIMEFRAME(IntEnum):
         TIMEFRAME_H8 (int): 8 hour
         TIMEFRAME_H12 (int): 12 hour
         TIMEFRAME_D1 (int): 1 day
-        TIMEFRAME_MN1 (int): 1 week
-        TIMEFRAME_M1 (int): 1 month
+        TIMEFRAME_W1 (int): 1 week
+        TIMEFRAME_MN1 (int): 1 month
     """
 
     TIMEFRAME_M1: int = mt5.TIMEFRAME_M1
@@ -436,6 +484,7 @@ class ENUM_TIMEFRAME(IntEnum):
     TIMEFRAME_M5: int = mt5.TIMEFRAME_M5
     TIMEFRAME_M6: int = mt5.TIMEFRAME_M6
     TIMEFRAME_M10: int = mt5.TIMEFRAME_M10
+    TIMEFRAME_M12: int = mt5.TIMEFRAME_M12
     TIMEFRAME_M15: int = mt5.TIMEFRAME_M15
     TIMEFRAME_M20: int = mt5.TIMEFRAME_M20
     TIMEFRAME_M30: int = mt5.TIMEFRAME_M30
@@ -447,6 +496,7 @@ class ENUM_TIMEFRAME(IntEnum):
     TIMEFRAME_H8: int = mt5.TIMEFRAME_H8
     TIMEFRAME_H12: int = mt5.TIMEFRAME_H12
     TIMEFRAME_D1: int = mt5.TIMEFRAME_D1
+    TIMEFRAME_W1: int = mt5.TIMEFRAME_W1
     TIMEFRAME_MN1: int = mt5.TIMEFRAME_MN1
 
 
@@ -1565,6 +1615,7 @@ class MqlTradeOrder(BaseModel):
 
         return values
 
+
 class MqlTradeDeal(BaseModel):
     """Trade Deal
 
@@ -1704,39 +1755,46 @@ class MqlTick(BaseModel):
 
     @classmethod
     def parse_tick(cls, tick: np.void) -> "MqlTick":
-        """Parse a np.void to MqlTick
+        """Parse an mt5 tick object (np.void) to MqlTick.
 
         Args:
-            tick (np.void): mt5 tick object
+            tick (np.void): mt5 tick object.
 
         Raises:
-            NotExpectedParseType: Type not expected
+            ValueError: If required attributes are missing or object type is incorrect.
 
         Returns:
-            MqlTick: object declared
+            MqlTick: Parsed and validated MqlTick object.
         """
-        try:
-            # Check object type
-            if not isinstance(tick, np.void):
-                raise NotExpectedParseType
+        required_attrs = [
+            "time", "bid", "ask", "last", "volume", "time_msc", "flags", "volume_real"
+        ]
 
-            # Set model attributes
-            dict_tick = {
-                "time": tick["time"],
-                "bid": tick["bid"],
-                "ask": tick["ask"],
-                "last": tick["last"],
-                "volume": tick["volume"],
-                "time_msc": tick["time_msc"],
-                "flags": tick["flags"],
-                "volume_real": tick["volume_real"],
-            }
-
-        except NotExpectedParseType as e:
-            raise NotExpectedParseType(
-                f"{cls.__name__} expected np.void not {tick.__class__.__name__}"
+        # Ensure the tick object has the necessary attributes
+        if not isinstance(tick, np.void):
+            raise ValueError(
+                f"Expected an np.void object, got {type(tick).__name__}"
             )
-        return cls(**dict_tick)
+
+        if not all(attr in tick.dtype.names for attr in required_attrs):
+            raise ValueError(
+                f"Expected an np.void object with all required attributes: {', '.join(required_attrs)}"
+            )
+
+        # Build the dictionary from the tick attributes
+        dict_tick = {
+            "time": tick["time"],
+            "bid": tick["bid"],
+            "ask": tick["ask"],
+            "last": tick["last"],
+            "volume": tick["volume"],
+            "time_msc": tick["time_msc"],
+            "flags": tick["flags"],
+            "volume_real": tick["volume_real"],
+        }
+
+        # Validate and return the model
+        return cls.model_validate(dict_tick)
 
     @field_validator("time", mode="before")
     def __validate_datetimes(cls, value: int, values: dict):
@@ -1758,7 +1816,22 @@ class MqlTick(BaseModel):
 
         return value
 
+def _create_rates() -> "Rates":
+    """Cria uma instância de Rates para ser usada como valor padrão."""
+    from algo_trading.sources.MetaTrader5_source.rates import Rates  # Importação tardia
+    return Rates
 
+def rebuild_model(cls):
+    """Decorator to call model_rebuild on the class after its definition."""
+    if 'algo_trading.sources.MetaTrader5_source.rates' not in sys.modules:
+        # Importação tardia para evitar erro de circular import
+        from algo_trading.sources.MetaTrader5_source.rates import Rates
+
+        # Certifica-se de que `model_rebuild` seja chamado corretamente
+        cls.model_rebuild()
+    return cls
+
+@rebuild_model
 class MqlAccountInfo(BaseModel):
     """Account Info
 
@@ -1832,7 +1905,8 @@ class MqlAccountInfo(BaseModel):
     positions: Optional[List[MqlPositionInfo]] = []
     history_deals: Optional[List[MqlTradeDeal]] = []
     is_backtest_account: Optional[bool] = False
-
+    rates_data: Optional[Type["Rates"]] = Field(default_factory=_create_rates)
+    
     @classmethod
     def parse_account(cls, account: "mt5.AccountInfo") -> "MqlAccountInfo":
         """Parse a mt5.AccountInfo object to MqlAccountInfo.
@@ -1877,6 +1951,7 @@ class MqlAccountInfo(BaseModel):
         # Validate and return the model
         return cls.model_validate(dict_account)
 
+    # Updating ------------------------------------------------------------------------------------
     @classmethod
     def __get_updated_positions(cls):
         # Get open positions on MetaTrader5
@@ -1924,6 +1999,7 @@ class MqlAccountInfo(BaseModel):
         # Get history deals on MetaTrader5
         self.history_deals = self.__get_updated_history_deals()
 
+    # Validations ---------------------------------------------------------------------------------
     @model_validator(mode="after")
     def __validate_create_balance_deal(cls, values):
         if values.is_backtest_account:
@@ -1964,5 +2040,4 @@ class MqlAccountInfo(BaseModel):
         balance = sum(deal.profit for deal in values.history_deals)
         values.balance = balance
         return values
-    
     
