@@ -1,24 +1,30 @@
-import pytest
-from unittest.mock import MagicMock
-from datetime import datetime, timezone
+# Imports para bibliotecas externas
+import pytest  # Biblioteca para criação de testes unitários
+from datetime import datetime, timezone  # Classes para manipulação de datas e fuso horário
+import pandas as pd  # Biblioteca para manipulação de DataFrames
+
+# Imports de enums, classes e modelos relacionados ao MetaTrader5
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    MqlPositionInfo, 
-    ENUM_ORDER_TYPE_MARKET, 
-    ENUM_POSITION_TYPE, 
-    ENUM_ACCOUNT_MARGIN_MODE,
-    MqlAccountInfo,
-    ENUM_ACCOUNT_TRADE_MODE,
-    ENUM_ACCOUNT_STOPOUT_MODE,
-    ENUM_DEAL_TYPE,
-    ENUM_DEAL_ENTRY,
+    ENUM_ORDER_TYPE_MARKET,  # Enum para tipos de ordens de mercado
+    ENUM_POSITION_TYPE,  # Enum para tipos de posições (compra/venda)
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum para modos de margem de conta
+    MqlAccountInfo,  # Modelo de informações da conta MetaTrader5
+    ENUM_ACCOUNT_TRADE_MODE,  # Enum para modos de operação da conta
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum para modos de stopout da conta
+    ENUM_DEAL_TYPE,  # Enum para tipos de negócio (ex.: execução de ordem)
+    ENUM_DEAL_ENTRY,  # Enum para entradas de negociação (entrada, saída)
 )
+
+# Imports de funções específicas relacionadas ao backtest
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __hedge_create_position_and_deal, 
-    __netting_create_position_and_deal,
-    __backtest_open_position,
+    __hedge_create_position_and_deal,  # Função interna para criar posição e negócio no modo hedge
+    __netting_create_position_and_deal,  # Função interna para criar posição e negócio no modo netting
+    __backtest_open_position,  # Função interna para abrir posição durante um backtest
 )
+
+# Import do módulo Account (gerenciamento de conta)
 from algo_trading.sources.MetaTrader5_source.account.account import Account
-import pandas as pd
+
 
 @pytest.fixture
 def account():

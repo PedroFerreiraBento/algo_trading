@@ -1,37 +1,44 @@
-from typing import Callable
-from datetime import datetime, timezone
+# Imports para tipagem e manipulação de datas
+from typing import Callable, List, TYPE_CHECKING  # Tipos usados para anotações de funções e listas
+from datetime import datetime, timezone  # Para manipulação de objetos de data/hora com timezone
+
+# Imports relacionados aos modelos do MetaTrader5
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    MqlPositionInfo,
-    MqlTradeDeal,
-    MqlSymbolInfo,
-    MqlTradeOrder,
-    ENUM_ACCOUNT_MARGIN_MODE,
-    ENUM_DEAL_TYPE,
-    ENUM_DEAL_ENTRY,
-    ENUM_DEAL_REASON,
-    ENUM_ORDER_TYPE,
-    ENUM_ORDER_REASON,
-    ENUM_ORDER_TYPE_MARKET,
-    ENUM_ORDER_TYPE_PENDING,
-    ENUM_ORDER_STATE,
-    ENUM_POSITION_REASON,
-    ENUM_POSITION_TYPE,
-    ENUM_ORDER_TYPE_TIME,
+    MqlPositionInfo,  # Modelo com informações sobre uma posição aberta
+    MqlTradeDeal,  # Modelo com informações sobre um deal de trade
+    MqlSymbolInfo,  # Modelo com informações sobre o símbolo negociado
+    MqlTradeOrder,  # Modelo com informações sobre a ordem de trade
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum para modos de margem da conta
+    ENUM_DEAL_TYPE,  # Enum para tipos de deal (DEAL_TYPE_BUY, DEAL_TYPE_SELL)
+    ENUM_DEAL_ENTRY,  # Enum para tipos de entrada (IN, OUT, INOUT)
+    ENUM_DEAL_REASON,  # Enum para motivos de execução de um deal
+    ENUM_ORDER_TYPE,  # Enum para tipos de ordens (compra, venda, limite, stop, etc.)
+    ENUM_ORDER_REASON,  # Enum para razões de execução de ordens
+    ENUM_ORDER_TYPE_MARKET,  # Enum específico para ordens de mercado
+    ENUM_ORDER_TYPE_PENDING,  # Enum específico para ordens pendentes
+    ENUM_ORDER_STATE,  # Enum para estados de uma ordem (pendente, concluída, etc.)
+    ENUM_POSITION_REASON,  # Enum para motivos de abertura de posição
+    ENUM_POSITION_TYPE,  # Enum para tipos de posição (buy/sell)
+    ENUM_ORDER_TYPE_TIME,  # Enum para tipos de ordens baseados em tempo (válida até cancelada, até um tempo específico)
 )
-from algo_trading.sources.MetaTrader5_source.rates import Rates
-from algo_trading.sources.MetaTrader5_source.utils.dates import get_timestamp_ms
+
+# Imports relacionados às taxas e candles
+from algo_trading.sources.MetaTrader5_source.rates import Rates  # Classe responsável por requisições de candles e ticks
+
+# Imports de utilitários (funções de data, trades e exceções)
+from algo_trading.sources.MetaTrader5_source.utils.dates import get_timestamp_ms  # Função para obter timestamp em milissegundos
 from algo_trading.sources.MetaTrader5_source.utils.trades import (
-    compute_profit,
-    get_last_tick,
-    get_order,
+    compute_profit,  # Função para calcular lucro ou prejuízo de uma posição
+    get_last_tick,  # Função para obter o último tick de preço
+    get_order,  # Função para buscar uma ordem específica
 )
-from algo_trading.sources.MetaTrader5_source.utils.exceptions import CouldNotSelectPosition
-from typing import List, TYPE_CHECKING
+from algo_trading.sources.MetaTrader5_source.utils.exceptions import CouldNotSelectPosition  # Exceção levantada quando não é possível selecionar uma posição
+
 
 if TYPE_CHECKING:
     from algo_trading.sources.MetaTrader5_source.operation.operation import Operation
 
-
+# Auxiliary Function ------------------------------------------------------------------------------
 def __get_deal_type(
     order_type: ENUM_ORDER_TYPE,
 ) -> ENUM_DEAL_TYPE:
@@ -69,8 +76,7 @@ def __get_deal_type(
         return ENUM_DEAL_TYPE.DEAL_TYPE_SELL  # Retorna o tipo de deal "SELL".
 
     # Lança um erro se o tipo de ordem não for reconhecido
-    raise TypeError("[ERROR]: Invalid order type")
-
+    raise TypeError("Invalid order type")
 
 def __get_entry(
     volume: float,
@@ -127,7 +133,6 @@ def __get_entry(
     # Retorna "IN" se a posição atual e a nova ordem têm a mesma direção.
     return ENUM_DEAL_ENTRY.DEAL_ENTRY_IN
 
-
 def __backtest_get_profit(
     operation_class: "Operation",
     symbol: str,
@@ -167,102 +172,139 @@ def __backtest_get_profit(
 
     return profit
 
+def __validate_operation_handler_attributes_for_symbol(
+    operation_class: "Operation",  # Objeto que gerencia os dados de operação e informações da conta
+    symbol: str,  # Par de moedas (ex.: "EURUSD")
+):
+    # Verifica se há dados de candles disponíveis para a simulação.
+    if not operation_class.last_candle:
+        raise ValueError("Dados de candles ausentes: 'last_candle' não definido.")
 
+    # Verifica se o par de moedas está presente nos dados de candles.
+    if symbol not in operation_class.last_candle:
+        raise ValueError(f"O símbolo '{symbol}' não está presente nos dados de candles.")
+
+    # Verifica se há informações sobre tick sizes disponíveis.
+    if not operation_class.tick_sizes:
+        raise ValueError("Tamanhos de tick ausentes: 'tick_sizes' não definidos.")
+
+    # Verifica se o par de moedas está presente nos dados de tick sizes.
+    if symbol not in operation_class.tick_sizes:
+        raise ValueError(f"O símbolo '{symbol}' não está presente nos tick sizes.")
+
+    # Verifica se há informações sobre contract sizes disponíveis.
+    if not operation_class.contract_sizes:
+        raise ValueError("Tamanhos dos contratos ausentes: 'contract_sizes' não definidos.")
+
+    # Verifica se o par de moedas está presente nos dados de contract sizes.
+    if symbol not in operation_class.contract_sizes:
+        raise ValueError(f"O símbolo '{symbol}' não está presente nos contract sizes.")
+
+
+# Create Deal -------------------------------------------------------------------------------------
 def __backtest_create_a_deal(
-    operation_class: "Operation",
-    symbol: str,
-    deal_time: datetime,
-    order_type: ENUM_ORDER_TYPE,
-    volume: float,
-    price: float,
-    position: MqlPositionInfo,
-    fee: float = 0,
-    commission: float = 0,
-    order: int = None,
-    comment: str = "",
+    operation_class: "Operation",  # Objeto que gerencia os dados de operação e informações da conta
+    symbol: str,  # Par de moedas (ex.: "EURUSD")
+    deal_time: datetime,  # Data e hora em que o deal é realizado
+    order_type: ENUM_ORDER_TYPE,  # Tipo de ordem (ex.: BUY, SELL)
+    volume: float,  # Volume da ordem (em lotes)
+    price: float,  # Preço da execução do deal
+    position: MqlPositionInfo,  # Informações da posição aberta (tipo, volume, preço de abertura, etc.)
+    fee: float = 0,  # Taxa da ordem (opcional)
+    commission: float = 0,  # Comissão aplicada na execução (opcional)
+    order: int = None,  # Identificador da ordem (opcional)
+    comment: str = "",  # Comentário sobre o deal (opcional)
 ) -> MqlTradeDeal:
-    """Create a deal on backtest account
+    """
+    Cria um deal durante o backtest.
 
     Args:
-        symbol (str): Symbol pair
-        deal_time (datetime): Deal time
-        order_type (ENUM_ORDER_TYPE): Order type
-        volume (float): Order volume
-        price (float): Order price
-        position (MqlPositionInfo): Position openned
-        operation_class (Operation): Trade class received on decorator
-        fee (float, optional): Order fee. Defaults to 0.
-        commission (float, optional): Order comission. Defaults to 0.
-        order (int, optional): Order identification. Defaults to None.
-        comment (str, optional): Comment. Defaults to "".
+        operation_class (Operation): Classe de operação com dados de conversão e informações da conta.
+        symbol (str): Par de moedas (exemplo: "EURUSD").
+        deal_time (datetime): Data e hora do deal.
+        order_type (ENUM_ORDER_TYPE): Tipo de ordem (compra, venda, limite, etc.).
+        volume (float): Volume da ordem em lotes.
+        price (float): Preço da execução do deal.
+        position (MqlPositionInfo): Informações da posição aberta (tipo, volume, preço de abertura, etc.).
+        fee (float, optional): Taxa aplicada à ordem. Padrão: 0.
+        commission (float, optional): Comissão aplicada à ordem. Padrão: 0.
+        order (int, optional): ID da ordem. Se `None`, será gerado automaticamente.
+        comment (str, optional): Comentário sobre o deal. Padrão: "".
 
     Returns:
-        MqlTradeDeal: Prepared deal
+        MqlTradeDeal: Objeto contendo os detalhes do deal.
     """
 
-    # Generate a deal ticket
+    # **1. Geração do ticket do deal**
+    # Gera um número de ticket exclusivo com base no timestamp em milissegundos.
     random_ticket = get_timestamp_ms(deal_time)
 
-    # Get order ID
+    # **2. Definição do ID da ordem**
+    # Se um ID de ordem não for fornecido, gera um ID automaticamente com base no timestamp atual.
     order_id = (
         order if order is not None else get_timestamp_ms(datetime.now(timezone.utc))
     )
 
-    # Get deal type
+    # **3. Determinação do tipo de deal (BUY/SELL)**
+    # Utiliza a função `__get_deal_type` para retornar o tipo de deal correspondente ao tipo de ordem.
     deal_type = __get_deal_type(order_type=order_type)
 
-    # Get entry in or out
+    # **4. Determinação do tipo de entrada (IN, OUT, INOUT)**
+    # Verifica se o deal é uma entrada (`IN`), saída (`OUT`) ou reversão (`INOUT`).
     entry = __get_entry(
         order_type=order_type,
         volume=volume,
         position=position,
     )
 
-    # Get deal profit
+    # **5. Cálculo do lucro do deal**
     if entry != ENUM_DEAL_ENTRY.DEAL_ENTRY_IN:
-        # Get volume of a partial out or full out deal
+        # Para saídas ou reversões, calcula o volume de fechamento:
+        # - Para `OUT`: Usa o volume informado.
+        # - Para `INOUT`: Fecha totalmente a posição atual.
         close_volume = (
             volume if entry != ENUM_DEAL_ENTRY.DEAL_ENTRY_INOUT else position.volume
         )
 
-        # Get profit of last tick
+        # Chama `__backtest_get_profit` para calcular o lucro ou prejuízo do deal.
         profit = __backtest_get_profit(
             operation_class=operation_class,
             symbol=symbol,
             account_currency=operation_class.account_data.currency,
             position_type=position.type,
-            price_open=position.price_open,
-            price_close=price,
-            price_volume=close_volume,
+            price_open=position.price_open,  # Preço de abertura da posição original
+            price_close=price,  # Preço de fechamento do deal
+            price_volume=close_volume,  # Volume utilizado no cálculo
         )        
-        
+
     else:
-        # Deals with entry In does not have profit
+        # Para entradas (`IN`), o lucro é sempre zero, pois é uma nova posição aberta.
         profit = 0
 
+    # **6. Criação do objeto `MqlTradeDeal`**
     deal = MqlTradeDeal(
-        symbol=symbol,
-        ticket=random_ticket,
-        order=order_id,
-        time=deal_time.replace(microsecond=0),
-        time_msc=deal_time,
-        type=deal_type,
-        entry=entry,
-        position_id=position.ticket,
-        volume=volume,
-        price=price,
-        commission=commission,
-        swap=0,
-        profit=profit,
-        fee=fee,
-        comment=comment,
-        magic=operation_class.account_data.magic_number,
-        reason=ENUM_DEAL_REASON.DEAL_REASON_EXPERT,
-        external_id=None,
+        symbol=symbol,  # Par de moedas
+        ticket=random_ticket,  # ID exclusivo do deal
+        order=order_id,  # ID da ordem
+        time=deal_time.replace(microsecond=0),  # Data/hora do deal (sem microsegundos)
+        time_msc=deal_time,  # Data/hora completa em milissegundos
+        type=deal_type,  # Tipo de deal (BUY/SELL)
+        entry=entry,  # Tipo de entrada (IN, OUT, INOUT)
+        position_id=position.ticket,  # ID da posição associada ao deal
+        volume=volume,  # Volume do deal em lotes
+        price=price,  # Preço da execução do deal
+        commission=commission,  # Comissão aplicada ao deal
+        swap=0,  # Swap (zero para backtests)
+        profit=profit,  # Lucro ou prejuízo do deal
+        fee=fee,  # Taxa associada ao deal
+        comment=comment,  # Comentário sobre o deal
+        magic=operation_class.account_data.magic_number,  # Magic number para identificação automática
+        reason=ENUM_DEAL_REASON.DEAL_REASON_EXPERT,  # Razão do deal (por expert)
+        external_id=None,  # ID externo (não utilizado)
     )
 
+    # **7. Retorno do objeto `MqlTradeDeal`**
     return deal
-
 
 # Open Position -----------------------------------------------------------------------------------
 def __hedge_create_position_and_deal(
@@ -582,30 +624,7 @@ def __backtest_open_position(
     Raises:
         ValueError: Caso dados essenciais como candles, spreads ou tamanhos de tick estejam ausentes.
     """
-
-    # Verifica se há dados de candles disponíveis para a simulação.
-    if not operation_class.last_candle:
-        raise ValueError("Dados de candles ausentes: 'last_candle' não definido.")
-
-    # Verifica se o par de moedas está presente nos dados de candles.
-    if symbol not in operation_class.last_candle:
-        raise ValueError(f"O símbolo '{symbol}' não está presente nos dados de candles.")
-
-    # Verifica se há informações sobre tick sizes disponíveis.
-    if not operation_class.tick_sizes:
-        raise ValueError("Tamanhos de tick ausentes: 'tick_sizes' não definidos.")
-
-    # Verifica se o par de moedas está presente nos dados de tick sizes.
-    if symbol not in operation_class.tick_sizes:
-        raise ValueError(f"O símbolo '{symbol}' não está presente nos tick sizes.")
-
-    # Verifica se há informações sobre contract sizes disponíveis.
-    if not operation_class.contract_sizes:
-        raise ValueError("Tamanhos dos contratos ausentes: 'contract_sizes' não definidos.")
-
-    # Verifica se o par de moedas está presente nos dados de contract sizes.
-    if symbol not in operation_class.contract_sizes:
-        raise ValueError(f"O símbolo '{symbol}' não está presente nos contract sizes.")
+    __validate_operation_handler_attributes_for_symbol(operation_class=operation_class, symbol=symbol)
 
     # Recupera o candle mais recente para simular o estado de mercado atual.
     last_candle = operation_class.last_candle[symbol]
@@ -664,7 +683,7 @@ def __backtest_open_position(
     # Retorna True para indicar que a operação foi bem-sucedida na simulação.
     return True
 
-# TODO: PYTEST
+# Open Pending Order ------------------------------------------------------------------------------
 def __backtest_open_pending_order(
     trade_class: "Operation",
     symbol: str,
@@ -710,8 +729,6 @@ def __backtest_open_pending_order(
 
     trade_class.account_data.orders.append(order)
 
-
-# TODO: PYTEST
 def __backtest_modify_pending_order(
     trade_class: "Operation",
     ticket: int,
@@ -743,8 +760,6 @@ def __backtest_modify_pending_order(
         type_time=type_time,
     )
 
-
-# TODO: PYTEST
 def __backtest_modify_position(
     trade_class: "Operation",
     stop_price: float = None,
@@ -784,63 +799,100 @@ def __backtest_modify_position(
         commen=comment,
     )
 
-
 def __backtest_close_position(
-    trade_class: "Operation",
-    position_ticket: int,
-    commission: float = 0,
-    fee: float = 0,
-    comment: str = "",
+    operation_class: "Operation",  # Classe de operação com informações sobre a conta e métodos auxiliares.
+    position_ticket: int,  # Ticket da posição que será encerrada.
+    commission: float = 0,  # Comissão aplicada ao fechamento da posição.
+    fee: float = 0,  # Taxa associada ao fechamento da posição.
+    comment: str = "",  # Comentário opcional sobre o fechamento.
 ):
-    # Get the position from account positions
+    """
+    Fecha uma posição em modo de backtest.
+
+    Args:
+        operation_class (Operation): Classe de operação com dados da conta e métodos auxiliares.
+        position_ticket (int): ID da posição que será fechada.
+        commission (float, optional): Comissão cobrada na operação de fechamento. Padrão: 0.
+        fee (float, optional): Taxa adicional aplicada na operação. Padrão: 0.
+        comment (str, optional): Comentário sobre o fechamento da posição. Padrão: "".
+
+    Raises:
+        CouldNotSelectPosition: Exceção levantada caso a posição com o `ticket` especificado não seja encontrada.
+    """
+
+    # **1. Seleção da Posição**
+    # Busca a posição com o `ticket` fornecido na lista de posições abertas.
     position_selected: List[MqlPositionInfo] = [
         position
-        for position in trade_class.account_data.positions
+        for position in operation_class.account_data.positions
         if position.ticket == position_ticket
     ]
 
-    # Check if the position exists
+    # **2. Verificação da Existência da Posição**
+    # Verifica se apenas uma posição corresponde ao `ticket`.
     if len(position_selected) != 1:
-        raise CouldNotSelectPosition("[ERROR]: Could not select the position.")
+        raise CouldNotSelectPosition("[ERROR]: Could not select the position.")  # Exceção caso não exista ou existam múltiplas posições com o mesmo `ticket`.
 
-    # Select the position object
+    # **3. Seleção da Posição**
+    # Recupera o objeto da posição.
     position_selected: MqlPositionInfo = position_selected[0]
+    symbol = position_selected.symbol  # Par de moedas da posição.
 
-    last_tick = get_last_tick(
-        position_selected.symbol,
-        trade_class.backtest_env.df.iloc[: trade_class.backtest_env.current_step + 1],
+    # **4. Validação de Atributos**
+    # Valida se o `operation_class` possui atributos válidos para o símbolo em questão.
+    __validate_operation_handler_attributes_for_symbol(
+        operation_class=operation_class, symbol=symbol
     )
 
-    # Get the oposite direction type and price
+    # **5. Recuperação do Último Candle**
+    # Obtém o último candle do par de moedas para simular o estado de mercado.
+    last_candle = operation_class.last_candle[symbol]
+    deal_time = last_candle.name  # Define o timestamp do candle como o tempo do deal.
+    simulated_spread: int = operation_class.account_data.simulated_spread  # Spread simulado em pontos.
+    trade_tick_size: float = operation_class.tick_sizes[symbol]  # Tamanho mínimo do tick de preço.
+
+    # **6. Definição do Tipo de Ordem e Preço**
+    # Determina o tipo de ordem e o preço com base no tipo de posição aberta.
     if position_selected.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY:
-        order_type = ENUM_ORDER_TYPE.ORDER_TYPE_SELL
-        price = last_tick.bid
+        # **Para posições de compra:**
+        # - O fechamento é uma ordem de venda (`SELL`).
+        # - O preço de fechamento é o preço de `close` do candle ajustado pelo spread (simulando o preço ASK).
+        price = last_candle.close + (trade_tick_size * simulated_spread)
+        order_type = ENUM_ORDER_TYPE.ORDER_TYPE_SELL  # Ordem de venda.
     else:
-        order_type = ENUM_ORDER_TYPE.ORDER_TYPE_BUY
-        price = last_tick.ask
+        # **Para posições de venda:**
+        # - O fechamento é uma ordem de compra (`BUY`).
+        # - O preço de fechamento é o preço de `close` do candle (simulando o preço BID).
+        price = last_candle.close
+        order_type = ENUM_ORDER_TYPE.ORDER_TYPE_BUY  # Ordem de compra.
 
+    # **7. Criação do Deal de Fechamento**
+    # Cria o objeto `MqlTradeDeal` com as informações do fechamento.
     deal = __backtest_create_a_deal(
-        deal_time=last_tick.time,
-        position=position_selected,
-        symbol=position_selected.symbol,
-        order_type=order_type,
-        volume=position_selected.volume,
-        price=price,
-        fee=fee,
-        commission=commission,
-        order=None,
-        comment=comment,
-        trade_class=trade_class,
+        deal_time=deal_time,  # Data/hora do deal.
+        position=position_selected,  # Posição a ser fechada.
+        symbol=symbol,  # Par de moedas.
+        order_type=order_type,  # Tipo de ordem (BUY/SELL).
+        volume=position_selected.volume,  # Volume da posição.
+        price=price,  # Preço de execução.
+        fee=fee,  # Taxa associada ao deal.
+        commission=commission,  # Comissão aplicada.
+        order=None,  # ID da ordem (gerado automaticamente).
+        comment=comment,  # Comentário sobre o fechamento.
+        operation_class=operation_class,  # Classe de operação.
     )
 
-    trade_class.account_data.history_deals.append(deal)
+    # **8. Registro do Deal no Histórico**
+    # Adiciona o deal ao histórico de operações realizadas.
+    operation_class.account_data.history_deals.append(deal)
 
-    # Close position
-    del trade_class.account_data.positions[
-        trade_class.account_data.positions.index(position_selected)
+    # **9. Remoção da Posição**
+    # Remove a posição da lista de posições abertas.
+    del operation_class.account_data.positions[
+        operation_class.account_data.positions.index(position_selected)
     ]
 
-
+# Decorators --------------------------------------------------------------------------------------
 def decorator_backtest_open_position(func: Callable):
     def check_backtest_account(*args, **kwargs):
         if args[0].account_data.is_backtest_account:
@@ -850,7 +902,6 @@ def decorator_backtest_open_position(func: Callable):
             return func(*args, **kwargs)
 
     return check_backtest_account
-
 
 def decorator_backtest_open_pending_order(func: Callable):
     def check_backtest_account(*args, **kwargs):
@@ -862,7 +913,6 @@ def decorator_backtest_open_pending_order(func: Callable):
 
     return check_backtest_account
 
-
 def decorator_backtest_modify_position(func: Callable):
     def check_backtest_account(*args, **kwargs):
         if args[0].account_data.is_backtest_account:
@@ -873,7 +923,6 @@ def decorator_backtest_modify_position(func: Callable):
 
     return check_backtest_account
 
-
 def decorator_backtest_modify_pending_order(func: Callable):
     def check_backtest_account(*args, **kwargs):
         if args[0].account_data.is_backtest_account:
@@ -883,7 +932,6 @@ def decorator_backtest_modify_pending_order(func: Callable):
             return func(*args, **kwargs)
 
     return check_backtest_account
-
 
 def decorator_backtest_close_position(func: Callable):
     def check_backtest_account(*args, **kwargs):
