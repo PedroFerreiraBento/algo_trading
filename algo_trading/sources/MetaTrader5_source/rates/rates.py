@@ -5,15 +5,13 @@ from algo_trading.sources.MetaTrader5_source.models.metatrader import (
     ENUM_COPY_TICKS,
     MqlSymbolInfo,
     MqlTick,
-    MqlSymbolInfo,
 )
 from algo_trading.sources.MetaTrader5_source.utils.metatrader import (
     decorator_validate_mt5_connection,
     validate_mt5_ulong_size,
 )
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import numpy as np
-from typing import List
 
 
 class Rates:
@@ -56,6 +54,7 @@ class Rates:
         symbol: str,
         timeframe: ENUM_TIMEFRAME = ENUM_TIMEFRAME.TIMEFRAME_M5,
         n_candles: int = 10_000,
+        use_close_candle_time: bool = False,
     ) -> pd.DataFrame:
         """Get last 'n' candles
 
@@ -63,9 +62,13 @@ class Rates:
             symbol (str): Requested symbol
             timeframe (ENUM_TIMEFRAME, optional): Requested timeframe. Defaults to ENUM_TIMEFRAME.TIMEFRAME_M5.
             n_candles (int, optional): Requested number of candles. Defaults to 10_000.
+            use_close_candle_time (bool, optional): Whether to use close time of candles and validate. Defaults to False.
 
         Returns:
-            pd.DataFrame: Requested OHLC data
+            pd.DataFrame: Requested OHLC data.
+
+        Raises:
+            ValueError: If `use_close_candle_time` is True and fewer than 4 candles are returned.
         """
 
         # Validate parameters
@@ -87,8 +90,23 @@ class Rates:
         # Convert timestamp to datetime
         ohlc_data["time"] = pd.to_datetime(ohlc_data.time, unit="s", utc=True)
 
-        # Set datetime as index
-        ohlc_data.set_index("time", inplace=True)
+        # Validate candle count if `use_close_candle_time` is True
+        if use_close_candle_time:
+            if len(ohlc_data) < 4:
+                raise ValueError("Insufficient data: At least 4 candles are required when 'use_close_candle_time' is True.")
+
+            # Calculate median time difference between candles
+            ohlc_data = ohlc_data.sort_values("time")
+            time_diffs = ohlc_data["time"].diff().dropna().dt.total_seconds()
+            median_time_diff = np.median(time_diffs)
+
+            # Adjust index to use the close candle time (by adding median time difference)
+            ohlc_data["close_time"] = ohlc_data["time"] + pd.to_timedelta(median_time_diff, unit="s")
+            ohlc_data.set_index("close_time", inplace=True)
+
+        else:
+            # Set datetime as index
+            ohlc_data.set_index("time", inplace=True)
 
         # Select only the useful columns
         ohlc_data = ohlc_data[["open", "high", "low", "close", "tick_volume"]]
@@ -103,6 +121,7 @@ class Rates:
         timeframe: ENUM_TIMEFRAME = ENUM_TIMEFRAME.TIMEFRAME_M5,
         date_to: datetime = datetime.now(timezone.utc),
         n_candles: int = 10_000,
+        use_close_candle_time: bool = False,
     ) -> pd.DataFrame:
         """Get candles from a specified datetime
 
@@ -111,15 +130,22 @@ class Rates:
             timeframe (ENUM_TIMEFRAME, optional): Requested timeframe. Defaults to ENUM_TIMEFRAME.TIMEFRAME_M5.
             date_to (datetime, optional): To date. Defaults to datetime.now(timezone.utc).
             n_candles (int, optional): Requested number of candles. Defaults to 10_000.
+            use_close_candle_time (bool, optional): Whether to use close time of candles and validate. Defaults to False.
 
         Returns:
-            pd.DataFrame: Requested OHLC data
+            pd.DataFrame: Requested OHLC data.
+
+        Raises:
+            ValueError: If `use_close_candle_time` is True and fewer than 4 candles are returned.
         """
         # Validate parameters
         cls.validate_symbol(symbol)
         validate_mt5_ulong_size(n_candles)
         cls.validate_count_candles(n_candles)
         cls.validate_date(date_to)
+
+        # Adjust date to
+        date_to = date_to - timedelta(microseconds=1)
 
         # Request OHLC data
         requested_data = mt5.copy_rates_from(symbol, timeframe, date_to, n_candles)
@@ -131,11 +157,24 @@ class Rates:
         ohlc_data = pd.DataFrame(requested_data)
 
         # Convert timestamp to datetime
-        ohlc_data["time"] = pd.to_datetime(ohlc_data.time, unit="s", utc=True)
-        
-        # Set datetime as index
-        ohlc_data.set_index("time", inplace=True)
-        
+        ohlc_data["time"] = pd.to_datetime(ohlc_data["time"], unit="s", utc=True)
+
+        if use_close_candle_time:
+            if len(ohlc_data) < 4:
+                raise ValueError("Insufficient data: At least 4 candles are required when 'use_close_candle_time' is True.")
+
+            # Calculate median time difference between candles
+            ohlc_data = ohlc_data.sort_values("time")
+            time_diffs = ohlc_data["time"].diff().dropna().dt.total_seconds()
+            median_time_diff = np.median(time_diffs)
+
+            # Adjust index to use the close candle time
+            ohlc_data["close_time"] = ohlc_data["time"] + pd.to_timedelta(median_time_diff, unit="s")
+            ohlc_data.set_index("close_time", inplace=True)
+        else:
+            # Set datetime as index
+            ohlc_data.set_index("time", inplace=True)
+
         # Select only the useful columns
         ohlc_data = ohlc_data[["open", "high", "low", "close", "tick_volume"]]
 
@@ -149,19 +188,23 @@ class Rates:
         date_from: datetime,
         date_to: datetime = datetime.now(timezone.utc),
         timeframe: ENUM_TIMEFRAME = ENUM_TIMEFRAME.TIMEFRAME_M5,
+        use_close_candle_time: bool = False,
     ) -> pd.DataFrame:
-        """Get candles from a specified datetime
+        """Get candles from a specified datetime range
 
         Args:
             symbol (str): Requested symbol
             date_from (datetime): From date.
             date_to (datetime, optional): To date. Defaults to datetime.now(timezone.utc).
             timeframe (ENUM_TIMEFRAME, optional): Requested timeframe. Defaults to ENUM_TIMEFRAME.TIMEFRAME_M5.
+            use_close_candle_time (bool, optional): Whether to use close time of candles and validate. Defaults to False.
 
         Returns:
-            pd.DataFrame: Requested OHLC data
-        """
+            pd.DataFrame: Requested OHLC data.
 
+        Raises:
+            ValueError: If `use_close_candle_time` is True and fewer than 4 candles are returned.
+        """
         # Validate parameters
         cls.validate_symbol(symbol)
         cls.validate_date(date_from)
@@ -178,11 +221,24 @@ class Rates:
         ohlc_data = pd.DataFrame(requested_data)
 
         # Convert timestamp to datetime
-        ohlc_data["time"] = pd.to_datetime(ohlc_data.time, unit="s", utc=True)
-        
-        # Set datetime as index
-        ohlc_data.set_index("time", inplace=True)
-        
+        ohlc_data["time"] = pd.to_datetime(ohlc_data["time"], unit="s", utc=True)
+
+        if use_close_candle_time:
+            if len(ohlc_data) < 4:
+                raise ValueError("Insufficient data: At least 4 candles are required when 'use_close_candle_time' is True.")
+
+            # Calculate median time difference between candles
+            ohlc_data = ohlc_data.sort_values("time")
+            time_diffs = ohlc_data["time"].diff().dropna().dt.total_seconds()
+            median_time_diff = np.median(time_diffs)
+
+            # Adjust index to use the close candle time
+            ohlc_data["close_time"] = ohlc_data["time"] + pd.to_timedelta(median_time_diff, unit="s")
+            ohlc_data.set_index("close_time", inplace=True)
+        else:
+            # Set datetime as index
+            ohlc_data.set_index("time", inplace=True)
+
         # Select only the useful columns
         ohlc_data = ohlc_data[["open", "high", "low", "close", "tick_volume"]]
 

@@ -1,4 +1,3 @@
-import pytest
 import MetaTrader5 as mt5
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (  
     ENUM_TRADE_REQUEST_ACTIONS,

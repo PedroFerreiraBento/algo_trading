@@ -20,9 +20,11 @@ from algo_trading.sources.MetaTrader5_source.utils.exceptions import NotExpected
 from algo_trading.sources.MetaTrader5_source.utils.dates import get_timestamp_ms  # Função utilitária para timestamps
 
 
-    
+from typing_extensions import Self
+import os    
 if TYPE_CHECKING:
     from algo_trading.sources.MetaTrader5_source.rates.rates import Rates
+    from algo_trading.sources.MetaTrader5_source.operation.operation import Operation
 
 
 class ENUM_COPY_TICKS(IntEnum):
@@ -58,7 +60,6 @@ class ENUM_TICK_FLAGS(IntEnum):
     TICK_FLAG_VOLUME: int = mt5.TICK_FLAG_VOLUME
     TICK_FLAG_BUY: int = mt5.TICK_FLAG_BUY
     TICK_FLAG_SELL: int = mt5.TICK_FLAG_SELL
-
 
 
 class ENUM_TRADE_REQUEST_ACTIONS(IntEnum):
@@ -1823,12 +1824,16 @@ def _create_rates() -> "Rates":
 
 def rebuild_model(cls):
     """Decorator to call model_rebuild on the class after its definition."""
-    if 'algo_trading.sources.MetaTrader5_source.rates' not in sys.modules:
+    if os.getenv('PYTEST_CURRENT_TEST') is None:
         # Importação tardia para evitar erro de circular import
-        from algo_trading.sources.MetaTrader5_source.rates import Rates
+        from algo_trading.sources.MetaTrader5_source.rates.rates import Rates
+        
+        # Importação tardia para evitar erro de circular import
+        from algo_trading.sources.MetaTrader5_source.operation.operation import Operation
 
         # Certifica-se de que `model_rebuild` seja chamado corretamente
         cls.model_rebuild()
+        
     return cls
 
 @rebuild_model
@@ -1906,7 +1911,31 @@ class MqlAccountInfo(BaseModel):
     history_deals: Optional[List[MqlTradeDeal]] = []
     is_backtest_account: Optional[bool] = False
     rates_data: Optional[Type["Rates"]] = Field(default_factory=_create_rates)
-    
+    magic_number: Optional[int] = None
+    deviation: Optional[int] = 5
+    type_filling: Optional[ENUM_ORDER_TYPE_FILLING] = ENUM_ORDER_TYPE_FILLING.ORDER_FILLING_FOK
+    operation: Optional["Operation"] = None
+    simulated_spread: Optional[int] = None
+        
+    def update(self, **kwargs):
+        """Atualiza os atributos do modelo após validação."""
+        # Define o dicionário adicional
+        dict_account = {
+            "is_backtest_account": False,
+            "orders": self.__get_updated_orders(),
+            "positions": self.__get_updated_positions(),
+            "history_deals": self.__get_updated_history_deals(),
+        }
+
+        # Mescla kwargs com dict_account
+        merged_kwargs = kwargs | dict_account
+
+        # Valida os dados existentes e mesclados
+        updated_data = self.model_validate(self.model_dump() | merged_kwargs)
+
+        # Atualiza os atributos do objeto com os dados validados
+        self.__dict__.update(updated_data.__dict__)
+        
     @classmethod
     def parse_account(cls, account: "mt5.AccountInfo") -> "MqlAccountInfo":
         """Parse a mt5.AccountInfo object to MqlAccountInfo.
@@ -2041,3 +2070,10 @@ class MqlAccountInfo(BaseModel):
         values.balance = balance
         return values
     
+    @model_validator(mode="after")
+    def __set_operation_class(self) -> Self:
+        from algo_trading.sources.MetaTrader5_source.operation.operation import Operation  # Importação tardia
+        
+        self.operation = Operation(account_data=self)
+        
+        return self

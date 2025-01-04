@@ -8,8 +8,12 @@ from algo_trading.sources.MetaTrader5_source.rates import Rates
 from algo_trading.sources.MetaTrader5_source.utils.exceptions import PairNotAvailable
 import datetime
 import pandas as pd
-from typing import List
+from typing import List, TYPE_CHECKING
 from collections import Counter
+
+if TYPE_CHECKING:
+    from algo_trading.sources.MetaTrader5_source.operation.operation import Operation
+
 
 
 def find_pair(currency_1: str, currency_2: str) -> str:
@@ -33,130 +37,121 @@ def find_pair(currency_1: str, currency_2: str) -> str:
 
 
 def convert_cross_currency_value(
+    operation_class: "Operation",
     value: float,
     value_currency: str,
     target_currency: str,
-    date_from: datetime,
     position_type: ENUM_POSITION_TYPE,
 ):
     # Direct currency convertion
     if target_currency == "USD" or value_currency == "USD":
         convert_pair = find_pair(currency_1=value_currency, currency_2=target_currency)
 
-        convert_tick: MqlTick = Rates.get_specific_tick(
-            symbol=convert_pair, date_from=date_from
+        convert_tick = operation_class.last_candle[convert_pair]
+        tick_size = operation_class.tick_sizes[convert_tick]
+        
+        close_price = (
+            tick_size.close + (tick_size * operation_class.account_data.simulated_spread) 
+            if position_type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
+            else tick_size.close
         )
-
-        if convert_pair.endswith(target_currency):
-            value_target = value * (
-                convert_tick.ask
-                if position_type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
-                else convert_tick.bid
-            )
-        else:
-            value_target = value / (
-                convert_tick.ask
-                if position_type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
-                else convert_tick.bid
-            )
+        
+        value_target = value * close_price if convert_pair.endswith(target_currency) else  value / close_price
 
     # Cross conversion
     else:
         # Base convert to USD
         convert_base_pair = find_pair(currency_1=value_currency, currency_2="USD")
-        convert_tick_base: MqlTick = Rates.get_specific_tick(
-            symbol=convert_base_pair, date_from=date_from
+        
+        convert_tick_base = operation_class.last_candle[convert_base_pair]
+        tick_size = operation_class.tick_sizes[convert_base_pair]
+        
+        close_price = (
+            convert_tick_base.close + (tick_size * operation_class.account_data.simulated_spread) 
+            if position_type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
+            else convert_tick_base.close
         )
 
-        if convert_base_pair.endswith("USD"):
-            value_base = value * (
-                convert_tick_base.ask
-                if position_type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
-                else convert_tick_base.bid
-            )
-        else:
-            value_base = value / (
-                convert_tick_base.ask
-                if position_type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
-                else convert_tick_base.bid
-            )
+        value_base = value * close_price if convert_base_pair.endswith("USD") else  value / close_price
 
         # USD convert to target
         convert_target_pair = find_pair(currency_1="USD", currency_2=target_currency)
 
-        convert_tick_target: MqlTick = Rates.get_specific_tick(
-            symbol=convert_target_pair, date_from=date_from
+        convert_tick_target = operation_class.last_candle[convert_target_pair]
+        tick_size = operation_class.tick_sizes[convert_tick_target]
+        
+        close_price = (
+            convert_tick_target.close + (tick_size * operation_class.account_data.simulated_spread) 
+            if position_type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
+            else convert_tick_target.close
         )
 
-        if convert_target_pair.endswith(target_currency):
-            value_target = value_base * (
-                convert_tick_target.ask
-                if position_type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
-                else convert_tick_target.bid
-            )
-        else:
-            value_target = value_base / (
-                convert_tick_target.ask
-                if position_type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
-                else convert_tick_target.bid
-            )
+        value_target = value_base * close_price if convert_target_pair.endswith(target_currency) else  value_base / close_price
 
     return value_target
 
 
 def compute_profit(
+    operation_class: "Operation",
     price_open: float,
     price_close: float,
     price_volume: float,
-    tick_close: MqlTick,
-    symbol_data: MqlSymbolInfo,
+    symbol: str,
     position_type: ENUM_POSITION_TYPE,
     account_currency: str,
 ) -> float:
-    """Compute position profit
+    """
+    Calcula o lucro ou prejuízo de uma posição com base nos preços de abertura e fechamento,
+    volume negociado e a moeda da conta.
 
     Args:
-        price_open (float): Position price open
-        price_close (float): Position price close
-        price_volume (float): Position volume
-        tick_close (MqlTick): Tick with close value
-        symbol_data (MqlSymbolInfo): Information about Symbol traded
-        position_type (ENUM_POSITION_TYPE): Position type
-        account_currency (str): Trade account currency base
+        operation_class (Operation): Classe de operação que contém os dados do contrato e de conversão de moeda.
+        price_open (float): Preço de abertura da posição.
+        price_close (float): Preço de fechamento da posição.
+        price_volume (float): Volume da posição em lotes.
+        symbol (str): Par de moedas (exemplo: "EURUSD").
+        position_type (ENUM_POSITION_TYPE): Tipo de posição (compra ou venda).
+        account_currency (str): Moeda base da conta (exemplo: "USD").
 
     Returns:
-        float: Profit
+        float: Lucro ou prejuízo da posição, arredondado para 5 casas decimais.
     """
+    
+    # Obtém o tamanho do contrato (exemplo: 100.000 unidades para 1 lote padrão)
+    contract_size = operation_class.contract_sizes[symbol]
 
-    # OBS: This value is in target currency. Ex: USDJPY, will be in JPY currency
-    tick_value = (
-        symbol_data.trade_contract_size * price_volume * symbol_data.trade_tick_size
-    )
+    # Calcula o lucro na moeda do par de negociação (target currency)
+    # Exemplo: em uma negociação USDJPY, o lucro será em JPY.
+    target_profit = contract_size * price_volume * (price_close - price_open)
 
-    # Get how many ticks the position worth
-    ticks_count = (price_close - price_open) / symbol_data.trade_tick_size
-
-    # Reverse it if it's buying a SELL position
+    # Se for uma posição de venda, o lucro precisa ser revertido
     if position_type != ENUM_POSITION_TYPE.POSITION_TYPE_BUY:
-        ticks_count *= -1
+        target_profit *= -1
 
-    # If account currency is the base of pair, convert the target value to base value
-    if symbol_data.currency_base == account_currency:
-        tick_value /= (
-            tick_close.ask if ENUM_POSITION_TYPE.POSITION_TYPE_BUY else tick_close.bid
+    # Converte o lucro para a moeda da conta, se necessário
+    simulated_spread: int = operation_class.account_data.simulated_spread
+
+    # Se a moeda da conta for a base do par (exemplo: "USD" em "USDJPY")
+    if symbol.startswith(account_currency):
+        # Ajusta o lucro com base no preço de fechamento considerando o spread simulado
+        target_profit /= (
+            price_close + (contract_size * simulated_spread)
+            if position_type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
+            else price_close
         )
 
-    # Cross currency
-    elif not symbol_data.currency_profit == account_currency:
-        tick_value = convert_cross_currency_value(
-            value=tick_value,
-            value_currency=symbol_data.currency_profit,
-            target_currency=account_currency,
-            date_from=tick_close["Datetime"],
+    # Se for um par cruzado (a moeda da conta não está no par de moedas negociado)
+    elif not symbol.endswith(account_currency):
+        # Converte o lucro para a moeda da conta usando uma função de conversão de cross currency
+        target_profit = convert_cross_currency_value(
+            operation_class=operation_class,
+            value=target_profit,
+            value_currency=symbol[3:],  # Moeda de cotação (exemplo: "JPY" em "USDJPY")
+            target_currency=account_currency,  # Moeda da conta
         )
 
-    # It is rounded because the computer operation can turn a 2.0 into 2.0000000006348273
-    profit = round(ticks_count * tick_value, 5)
+    # Arredonda o lucro para evitar valores com muitas casas decimais
+    profit = round(target_profit, 5)
 
     return profit
 

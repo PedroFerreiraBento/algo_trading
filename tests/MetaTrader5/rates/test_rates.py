@@ -1,10 +1,18 @@
+import os
+# Set as environment to solve cases of circular imports on pytest
+os.environ["PYTEST_CURRENT_TEST"] = "dummy_test"
+
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone, timedelta
-from algo_trading.sources.MetaTrader5_source.rates import Rates
+from algo_trading.sources.MetaTrader5_source.rates.rates import Rates
 from algo_trading.sources.MetaTrader5_source.models.metatrader import MqlSymbolInfo, MqlTick, ENUM_TIMEFRAME, ENUM_COPY_TICKS
 import pandas as pd
 import numpy as np
+
+# Unset env to use lazy imports after standard initialization
+os.environ.pop("PYTEST_CURRENT_TEST", None)  # Safe way to remove without KeyError
+
 
 # Test Symbols ------------------------------------------------------------------------------------
 @pytest.fixture
@@ -73,9 +81,50 @@ def test_get_last_n_candles(mock_mt5, mock_symbol):
     mock_mt5.initialize.return_value = True
     mock_mt5.account_info.return_value = True
     mock_mt5.terminal_info.return_value = MagicMock(maxbars=10000)
-    
+
     # Mock para copy_rates_from
     now = datetime.now(timezone.utc)
+    mock_mt5.copy_rates_from.return_value = np.array(
+        [
+            (int(now.timestamp()), 1.1234, 1.1250, 1.1220, 1.1240, 100),
+            (int((now - timedelta(minutes=1)).timestamp()), 1.1240, 1.1260, 1.1230, 1.1250, 150),
+            (int((now - timedelta(minutes=2)).timestamp()), 1.1250, 1.1270, 1.1240, 1.1260, 200),
+            (int((now - timedelta(minutes=3)).timestamp()), 1.1260, 1.1280, 1.1250, 1.1270, 250),
+        ],
+        dtype=[
+            ("time", "i8"), ("open", "f8"), ("high", "f8"), ("low", "f8"), ("close", "f8"), ("tick_volume", "i8")
+        ]
+    )
+
+    # Executa o método com `use_close_candle_time=False`
+    with patch("algo_trading.sources.MetaTrader5_source.rates.rates.datetime") as mock_datetime:
+        mock_datetime.now.return_value = now
+        mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+
+        candles = Rates.get_last_n_candles(symbol="EURUSD", timeframe=ENUM_TIMEFRAME.TIMEFRAME_M1, n_candles=4, use_close_candle_time=False)
+
+    # Verificações para `use_close_candle_time=False`
+    mock_mt5.copy_rates_from.assert_called_once_with("EURUSD", ENUM_TIMEFRAME.TIMEFRAME_M1, now, 4)
+    assert isinstance(candles, pd.DataFrame)
+    assert list(candles.columns) == ["open", "high", "low", "close", "tick_volume"]
+    assert candles.shape[0] == 4
+    assert candles.index.name == "time"
+
+    # Executa o método com `use_close_candle_time=True`
+    candles_with_close_time = Rates.get_last_n_candles(symbol="EURUSD", timeframe=ENUM_TIMEFRAME.TIMEFRAME_M1, n_candles=4, use_close_candle_time=True)
+
+    # Verificações para `use_close_candle_time=True`
+    assert isinstance(candles_with_close_time, pd.DataFrame)
+    assert list(candles_with_close_time.columns) == ["open", "high", "low", "close", "tick_volume"]
+    assert candles_with_close_time.shape[0] == 4
+    assert candles_with_close_time.index.name == "close_time"
+
+    # Verificar se a mediana de tempo foi aplicada corretamente ao índice
+    time_diffs = candles_with_close_time.index.to_series().diff().dt.total_seconds().dropna()
+    median_diff = time_diffs.median()
+    assert median_diff > 0, "A mediana da diferença de tempo deveria ser positiva."
+
+    # Simular cenário com menos de 4 candles para validar erro
     mock_mt5.copy_rates_from.return_value = np.array(
         [
             (int(now.timestamp()), 1.1234, 1.1250, 1.1220, 1.1240, 100),
@@ -86,19 +135,10 @@ def test_get_last_n_candles(mock_mt5, mock_symbol):
         ]
     )
 
-    # Executa o método
-    with patch("algo_trading.sources.MetaTrader5_source.rates.rates.datetime") as mock_datetime:
-        # Configura o mock para retornar a data específica
-        mock_datetime.now.return_value = now
-        mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
-
-        candles = Rates.get_last_n_candles(symbol="EURUSD", timeframe=ENUM_TIMEFRAME.TIMEFRAME_M1, n_candles=2)
-
-    # Verificações
-    mock_mt5.copy_rates_from.assert_called_once_with("EURUSD", ENUM_TIMEFRAME.TIMEFRAME_M1, now, 2)
-    assert isinstance(candles, pd.DataFrame)
-    assert list(candles.columns) == ["open", "high", "low", "close", "tick_volume"]
-    assert candles.shape[0] == 2
+    try:
+        Rates.get_last_n_candles(symbol="EURUSD", timeframe=ENUM_TIMEFRAME.TIMEFRAME_M1, n_candles=2, use_close_candle_time=True)
+    except ValueError as e:
+        assert str(e) == "Insufficient data: At least 4 candles are required when 'use_close_candle_time' is True."
 
 
 @patch("algo_trading.sources.MetaTrader5_source.rates.rates.mt5")
@@ -108,59 +148,88 @@ def test_get_candles_before(mock_mt5, mock_symbol):
     mock_mt5.initialize.return_value = True
     mock_mt5.account_info.return_value = True
     mock_mt5.terminal_info.return_value = MagicMock(maxbars=10000)
-    
+
     # Mock para copy_rates_from
     date_to = datetime(2023, 12, 31, 12, 0, 0, tzinfo=timezone.utc)
     mock_mt5.copy_rates_from.return_value = np.array(
         [
             (int(date_to.timestamp()), 1.1234, 1.1250, 1.1220, 1.1240, 100),
             (int((date_to - timedelta(minutes=1)).timestamp()), 1.1240, 1.1260, 1.1230, 1.1250, 150),
+            (int((date_to - timedelta(minutes=2)).timestamp()), 1.1250, 1.1270, 1.1240, 1.1260, 200),
+            (int((date_to - timedelta(minutes=3)).timestamp()), 1.1260, 1.1280, 1.1250, 1.1270, 250),
         ],
         dtype=[
             ("time", "i8"), ("open", "f8"), ("high", "f8"), ("low", "f8"), ("close", "f8"), ("tick_volume", "i8")
         ]
     )
 
-    # Executa o método
-    candles = Rates.get_candles_before(symbol="EURUSD", timeframe=ENUM_TIMEFRAME.TIMEFRAME_M1, date_to=date_to, n_candles=2)
+    # Executa o método com use_close_candle_time=True
+    candles = Rates.get_candles_before(symbol="EURUSD", timeframe=ENUM_TIMEFRAME.TIMEFRAME_M1, date_to=date_to, n_candles=4, use_close_candle_time=True)
 
     # Verificações
-    mock_mt5.copy_rates_from.assert_called_once_with("EURUSD", ENUM_TIMEFRAME.TIMEFRAME_M1, date_to, 2)
+    mock_mt5.copy_rates_from.assert_called_once_with("EURUSD", ENUM_TIMEFRAME.TIMEFRAME_M1, date_to, 4)
     assert isinstance(candles, pd.DataFrame)
     assert list(candles.columns) == ["open", "high", "low", "close", "tick_volume"]
-    assert candles.shape[0] == 2
-    
-    
+    assert candles.shape[0] == 4
+    assert candles.index.name == "close_time"
+
+    # Verificar se a mediana da diferença de tempo foi aplicada corretamente ao índice
+    time_diffs = candles.index.to_series().diff().dt.total_seconds().dropna()
+    median_diff = time_diffs.median()
+    assert median_diff > 0, "A mediana da diferença de tempo deveria ser positiva."
+
+
 @patch("algo_trading.sources.MetaTrader5_source.rates.rates.mt5")
 def test_get_candles_range(mock_mt5, mock_symbol):
     # Mock para symbol_info
     mock_mt5.symbols_get.return_value = (mock_symbol,)
     mock_mt5.initialize.return_value = True
     mock_mt5.account_info.return_value = True
-    
+
     # Mock para copy_rates_range
     date_from = datetime(2023, 12, 30, 12, 0, 0, tzinfo=timezone.utc)
     date_to = datetime(2023, 12, 31, 12, 0, 0, tzinfo=timezone.utc)
     mock_mt5.copy_rates_range.return_value = np.array(
         [
             (int(date_from.timestamp()), 1.1220, 1.1230, 1.1210, 1.1225, 200),
-            (int(date_to.timestamp()), 1.1230, 1.1240, 1.1220, 1.1235, 300),
+            (int((date_from + timedelta(minutes=1)).timestamp()), 1.1225, 1.1240, 1.1215, 1.1230, 250),
+            (int((date_from + timedelta(minutes=2)).timestamp()), 1.1230, 1.1250, 1.1220, 1.1240, 300),
+            (int(date_to.timestamp()), 1.1235, 1.1245, 1.1230, 1.1245, 350),
         ],
         dtype=[
             ("time", "i8"), ("open", "f8"), ("high", "f8"), ("low", "f8"), ("close", "f8"), ("tick_volume", "i8")
         ]
     )
 
-    # Executa o método
-    candles = Rates.get_candles_range(symbol="EURUSD", date_from=date_from, date_to=date_to, timeframe=ENUM_TIMEFRAME.TIMEFRAME_M1)
+    # Executa o método com use_close_candle_time=True
+    candles = Rates.get_candles_range(symbol="EURUSD", date_from=date_from, date_to=date_to, timeframe=ENUM_TIMEFRAME.TIMEFRAME_M1, use_close_candle_time=True)
 
     # Verificações
     mock_mt5.copy_rates_range.assert_called_once_with("EURUSD", ENUM_TIMEFRAME.TIMEFRAME_M1, date_from, date_to)
     assert isinstance(candles, pd.DataFrame)
     assert list(candles.columns) == ["open", "high", "low", "close", "tick_volume"]
-    assert candles.shape[0] == 2
-    
-    
+    assert candles.shape[0] == 4
+    assert candles.index.name == "close_time"
+
+    # Verificar se a mediana da diferença de tempo foi aplicada corretamente ao índice
+    time_diffs = candles.index.to_series().diff().dt.total_seconds().dropna()
+    median_diff = time_diffs.median()
+    assert median_diff > 0, "A mediana da diferença de tempo deveria ser positiva."
+
+    # Simular cenário com menos de 4 candles para validar erro
+    mock_mt5.copy_rates_range.return_value = np.array(
+        [
+            (int(date_from.timestamp()), 1.1220, 1.1230, 1.1210, 1.1225, 200),
+            (int((date_from + timedelta(minutes=1)).timestamp()), 1.1225, 1.1240, 1.1215, 1.1230, 250),
+        ],
+        dtype=[
+            ("time", "i8"), ("open", "f8"), ("high", "f8"), ("low", "f8"), ("close", "f8"), ("tick_volume", "i8")
+        ]
+    )
+
+    with pytest.raises(ValueError, match="Insufficient data: At least 4 candles are required when 'use_close_candle_time' is True."):
+        Rates.get_candles_range(symbol="EURUSD", date_from=date_from, date_to=date_to, timeframe=ENUM_TIMEFRAME.TIMEFRAME_M1, use_close_candle_time=True)
+
 # Test Ticks ------------------------------------------------------------------------------------00
 @patch("algo_trading.sources.MetaTrader5_source.rates.rates.mt5")
 def test_get_last_n_ticks(mock_mt5, mock_symbol):

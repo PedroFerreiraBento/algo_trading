@@ -79,7 +79,6 @@ class Account:
         timeout: int = 60_000,
         portable: bool = False,
         path: str = "",
-        update_on_login: bool = True,
     ) -> MqlAccountInfo:
         """Log into a live account."""
         if not mt5.initialize(
@@ -91,15 +90,15 @@ class Account:
             raise ConnectionError(error_message)
 
         self.logger.info(f"Successfully logged in to live account #{login}")
-
-        if update_on_login:
-            self.update_live_account_data()
+        self.update_live_account_data()
 
         return self.live_account_data
 
     def logout(self) -> None:
         """Log out from the current live session."""
         mt5.shutdown()
+        self.live_account_data = None
+        self.backtest_account_data = None
         self.logger.info("Successfully logged out.")
 
     @decorator_validate_mt5_connection
