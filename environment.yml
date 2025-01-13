@@ -1,34 +1,45 @@
-name: backtestenv
+# **Nome do Ambiente**
+name: backtestenv  # Nome do ambiente Conda
+
+# **Canais para Download**
 channels:
-  - conda-forge
-  - defaults
+  - conda-forge  # Canal "conda-forge" com pacotes atualizados e amplamente suportados.
+  - defaults  # Canal padrão do Conda.
+
+# **Dependências do Ambiente**
 dependencies:
-  # Versão específica do Python
-  - python=3.12.8
-  
-  # Principais bibliotecas para análise de dados e cálculos numéricos
-  - pandas=2.2.3
-  - numpy=1.26.4
-  
-  # Biblioteca para acessar dados financeiros
-  - yfinance=0.2.28
-  
-  # Suporte a formatos avançados de armazenamento de dados
-  - pyarrow=17.0.0
-  - tables=3.9.2
-  
-  # Ferramentas para visualização de dados
-  - matplotlib=3.9.2
-  
-  # Ambiente interativo para desenvolvimento
-  - notebook=7.2.2
-  
-  # Framework para testes automatizados
-  - pytest=7.4.4
+  # **Versão do Python**
+  - python=3.12.8  # Versão específica do Python (3.12.8) para compatibilidade com outras bibliotecas.
 
-  - pip
+  # **Bibliotecas de Análise de Dados e Cálculos Numéricos**
+  - pandas=2.2.3  # Biblioteca para manipulação de dados estruturados (DataFrames).
+  - numpy=1.26.4  # Biblioteca para operações numéricas com arrays multidimensionais.
 
+  # **Acesso a Dados Financeiros**
+  - yfinance=0.2.28  # Biblioteca para acessar dados de mercado financeiro via Yahoo Finance.
+
+  # **Bibliotecas de Armazenamento de Dados Avançadas**
+  - pyarrow=17.0.0  # Suporte a leitura e escrita de formatos Parquet e Arrow.
+  - tables=3.9.2  # Suporte ao formato de arquivo HDF5, útil para grandes conjuntos de dados.
+
+  # **Visualização de Dados**
+  - matplotlib=3.9.2  # Biblioteca para criação de gráficos e visualização de dados.
+
+  # **Ambiente Interativo para Desenvolvimento**
+  - notebook=7.2.2  # Ambiente interativo Jupyter Notebook para escrever e executar código.
+
+  # **Framework de Testes Automatizados**
+  - pytest=7.4.4  # Biblioteca para criação de testes unitários automatizados.
+
+  # **Carregamento de Variáveis de Ambiente**
+  - python-dotenv=1.0.1  # Biblioteca para carregar variáveis de ambiente de arquivos `.env`.
+
+  # **Suporte ao Instalador `pip`**
+  - pip  # Instalação do `pip` para gerenciar pacotes não disponíveis diretamente via `conda`.
+
+  # **Dependências Instaladas via `pip`**
   - pip:
-    # Library to connect with MetaTrader 5 trading platform
-    - MetaTrader5==5.0.4738 
-    - pydantic==2.10.4
+      # **MetaTrader 5 API**
+      - MetaTrader5==5.0.4738  # Biblioteca oficial para conectar à plataforma MetaTrader 5.
+      # **Validação de Dados e Modelos**
+      - pydantic==2.10.4  # Biblioteca para validação de dados e definição de modelos baseados em Python.

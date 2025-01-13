@@ -10,5 +10,6 @@ data/*
 *.csv
 *.pickle
 *.db
+*.env
 __pycache__/*
 __pycache__

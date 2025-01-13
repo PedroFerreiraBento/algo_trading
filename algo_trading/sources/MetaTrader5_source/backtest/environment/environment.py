@@ -251,7 +251,6 @@ class TradingEnv:
 
             # Compute position profit
             reward += compute_profit(
-                account_currency=self.account.currency,
                 position_type=position.type,
                 price_open=price_open,
                 price_close=position.price_current,
@@ -292,7 +291,6 @@ class TradingEnv:
 
             # Compute position profit
             profit = compute_profit(
-                account_currency=self.account.currency,
                 position_type=position.type,
                 price_open=position.price_open,
                 price_close=price,

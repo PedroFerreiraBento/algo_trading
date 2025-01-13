@@ -1,6 +1,6 @@
 import MetaTrader5 as mt5
 from datetime import datetime
-from typing import Callable, List, TYPE_CHECKING, Dict
+from typing import Callable, List, TYPE_CHECKING, Dict, Optional, Union
 import time
 
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
@@ -18,6 +18,8 @@ from algo_trading.sources.MetaTrader5_source.models.metatrader import (
     ENUM_TRADE_RETCODE,
     ENUM_POSITION_TYPE,
     ENUM_CHECK_CODE,
+    ENUM_SYMBOL_CALC_MODE,
+    ENUM_SYMBOL_SWAP_MODE,
 )
 from algo_trading.sources.MetaTrader5_source.rates import Rates
 from algo_trading.sources.MetaTrader5_source.utils.metatrader import (
@@ -28,14 +30,17 @@ from algo_trading.sources.MetaTrader5_source.utils.exceptions import (
     CouldNotSelectPosition,
 )
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    decorator_backtest_open_position,
-    decorator_backtest_open_pending_order,
-    decorator_backtest_modify_position,
-    decorator_backtest_modify_pending_order,
-    decorator_backtest_close_position,
+    decorator_backtest_position_open,
+    decorator_backtest_pending_order_open,
+    decorator_backtest_position_modify,
+    decorator_backtest_pending_order_modify,
+    decorator_backtest_position_close,
+    decorator_update_candles,
+    __process_account_update_data,
 )
 from pydantic_core import core_schema
 import pandas as pd
+from algo_trading.sources.MetaTrader5_source.utils.trades import identify_required_pairs
 
 import logging
 
@@ -52,28 +57,51 @@ RETRY_DELAY = 0.5  # Retry delay in seconds
 if TYPE_CHECKING:
     from algo_trading.sources.MetaTrader5_source.models.metatrader import MqlAccountInfo
 
+
+
 class Operation:
     """Trade utilility class"""
 
     def __init__(
         self,
         account_data: "MqlAccountInfo",
-        last_candle: Dict[str, pd.Series] = None,
-        tick_sizes: Dict[str, float] = None,
-        contract_sizes: Dict[str, int] = None,
     ) -> None:
         self.account_data = account_data
-        self.last_candle = last_candle
-        self.tick_sizes = tick_sizes
-        self.contract_sizes = contract_sizes
+        self.backtest_symbols_data: Optional[pd.DataFrame] = None
+
+        if self.account_data.is_backtest_account:
+            # Dicionário de tipos de dados
+            dtypes: Dict[str, Union[str, type]] = {
+                "symbol": str,  # Symbol é uma string
+                "tick_size": float,  # Tick size é um valor decimal
+                "contract_size": int,  # Contract size é um número inteiro
+                "trade_calc_mode": int,  # Enum específico para modo de cálculo (ENUM_SYMBOL_CALC_MODE)
+                "swap_mode": int,  # Enum específico para swap mode (ENUM_SYMBOL_SWAP_MODE)
+                "swap_long": float,  # Taxa de swap long é um número decimal
+                "swap_short": float,  # Taxa de swap short é um número decimal
+                "volume_min": float,
+                "volume_max": float,
+                "volume_step": float,
+                "volume_limit": float,
+                "swap_rollover3days": int,  # Dia de rollover é um número inteiro (representando o dia)
+                "last_candle": object,  # Pandas `Series` é um objeto
+            }
+
+            # Criação do DataFrame com tipos de dados
+            self.backtest_symbols_data = pd.DataFrame(columns=dtypes.keys()).astype(
+                dtypes
+            )
+            self.backtest_symbols_data.set_index("symbol", inplace=True)
 
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type, handler):
         # Define como o Pydantic deve lidar com a classe Operation
         return core_schema.no_info_plain_validator_function(
-            lambda v: v if isinstance(v, cls) else TypeError("Expected an Operation instance")
+            lambda v: (
+                v if isinstance(v, cls) else TypeError("Expected an Operation instance")
+            )
         )
-        
+
     def __decorator_refresh_account_data(method: Callable) -> Callable:
         """Refresh account data
 
@@ -107,7 +135,9 @@ class Operation:
                 # Check if the account is a backtest account
                 if not account.is_backtest_account:
                     # Refresh account data
-                    account: "MqlAccountInfo" = account.update(**mt5.account_info()._asdict())
+                    account: "MqlAccountInfo" = account.update(
+                        **mt5.account_info()._asdict()
+                    )
 
                 return account
 
@@ -158,9 +188,83 @@ class Operation:
 
         return status
 
-    # Open orders ---------------------------------------------------------------------
+    # Backtest Methods ----------------------------------------------------------------------------
+    def backtest_add_symbol_data(self, symbols: List[str]):
+        """
+        Adiciona os dados de múltiplos símbolos ao `DataFrame` considerando pares necessários para conversão.
+
+        Args:
+            symbols (List[str]): Lista de pares de moedas a serem operados.
+        """
+        # Lista para armazenar os dados temporariamente
+        symbol_records = []
+
+        # Obtém a moeda da conta (ex.: "USD", "JPY")
+        account_currency = self.account_data.currency
+
+        # Mantém um conjunto com símbolos já processados para evitar duplicatas
+        processed_symbols = set(self.backtest_symbols_data.index)
+
+        for symbol in symbols:
+            # Remove duplicados
+            required_symbols = identify_required_pairs(
+                symbol=symbol, account_currency=account_currency
+            )
+
+            for required_symbol in required_symbols:
+                # Verifica se o símbolo já foi processado
+                if required_symbol in processed_symbols:
+                    continue  # Pula símbolos já adicionados
+
+                symbol_data: MqlSymbolInfo = (
+                    self.account_data.rates_data.get_symbol_data(required_symbol)
+                )
+
+                # Monta o dicionário com os dados do símbolo
+                record = {
+                    "symbol": required_symbol,
+                    "tick_size": symbol_data.trade_tick_size,
+                    "contract_size": symbol_data.trade_contract_size,
+                    "trade_calc_mode": symbol_data.trade_calc_mode,
+                    "volume_min": symbol_data.volume_min,
+                    "volume_max": symbol_data.volume_max,
+                    "volume_step": symbol_data.volume_step,
+                    "volume_limit": symbol_data.volume_limit,
+                    "swap_mode": symbol_data.swap_mode,
+                    "swap_long": symbol_data.swap_long,
+                    "swap_short": symbol_data.swap_short,
+                    "swap_rollover3days": symbol_data.swap_rollover3days,
+                    "last_candle": None,
+                }
+                symbol_records.append(record)
+                processed_symbols.add(required_symbol)  # Marca como processado
+
+        if symbol_records:
+            # Criação do DataFrame a partir dos registros
+            df_symbols = pd.DataFrame.from_records(symbol_records).set_index("symbol")
+
+            # Concatenação com o DataFrame principal, garantindo a não duplicação
+            self.backtest_symbols_data = pd.concat(
+                [self.backtest_symbols_data, df_symbols]
+            )
+
+    # Processa os eventos após atualização
+    @decorator_update_candles
+    def backtest_update_candles(self, last_candles: Dict[str, pd.Series]):
+        """
+        Atualiza os candles de múltiplos símbolos no DataFrame de forma vetorizada.
+        """
+        # Converte `last_candles` para um `DataFrame` e faz o alinhamento automático com `update()`
+        update_df = pd.DataFrame.from_dict(
+            last_candles, orient="index", columns=["last_candle"]
+        )
+
+        # Atualiza apenas a coluna de `last_candle`
+        self.backtest_symbols_data.update(update_df)
+
+    # Open orders ---------------------------------------------------------------------------------
     @decorator_validate_mt5_connection
-    @decorator_backtest_open_position
+    @decorator_backtest_position_open
     @__decorator_refresh_account_data
     def __open_position(
         self,
@@ -259,7 +363,7 @@ class Operation:
         return check_code == ENUM_CHECK_CODE.CHECK_RETCODE_OK
 
     @decorator_validate_mt5_connection
-    @decorator_backtest_open_pending_order
+    @decorator_backtest_pending_order_open
     @__decorator_refresh_account_data
     def __open_pending_order(
         self,
@@ -362,7 +466,7 @@ class Operation:
         return check_code == ENUM_CHECK_CODE.CHECK_RETCODE_OK
 
     @decorator_validate_mt5_connection
-    @decorator_backtest_modify_position
+    @decorator_backtest_position_modify
     @__decorator_refresh_account_data
     def modify_position(
         self,
@@ -464,7 +568,7 @@ class Operation:
         return check_code == ENUM_CHECK_CODE.CHECK_RETCODE_OK
 
     @decorator_validate_mt5_connection
-    @decorator_backtest_modify_pending_order
+    @decorator_backtest_pending_order_modify
     @__decorator_refresh_account_data
     def modify_pending_order(
         self,
@@ -549,7 +653,7 @@ class Operation:
         return check_code == ENUM_CHECK_CODE.CHECK_RETCODE_OK
 
     @decorator_validate_mt5_connection
-    @decorator_backtest_close_position
+    @decorator_backtest_position_close
     @__decorator_refresh_account_data
     def close_position(self, position_ticket: int, comment: str = ""):
         position_not_found_error = CouldNotSelectPosition(

@@ -2,7 +2,10 @@
 import pytest  # Biblioteca para criação e execução de testes unitários
 
 # **Bibliotecas de Datas e Horários**
-from datetime import datetime, timezone  # Utilizado para definir timestamps e fusos horários
+from datetime import (
+    datetime,
+    timezone,
+)  # Utilizado para definir timestamps e fusos horários
 
 # **Modelos e Enums do MetaTrader5**
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
@@ -13,19 +16,25 @@ from algo_trading.sources.MetaTrader5_source.models.metatrader import (
     ENUM_ACCOUNT_STOPOUT_MODE,  # Enum para o modo de stop-out (percentual ou valor fixo)
     ENUM_ACCOUNT_MARGIN_MODE,  # Enum para o modo de margem da conta (e.g., hedge, netting)
     ENUM_ORDER_TYPE_MARKET,  # Enum para ordens de mercado (e.g., BUY/SELL a mercado)
+    ENUM_SYMBOL_CALC_MODE,
+    ENUM_SYMBOL_SWAP_MODE,
 )
 
 # **Exceções Personalizadas**
-from algo_trading.sources.MetaTrader5_source.utils.exceptions import CouldNotSelectPosition  # Exceção levantada quando uma posição não pode ser selecionada
+from algo_trading.sources.MetaTrader5_source.utils.exceptions import (
+    CouldNotSelectPosition,
+)  # Exceção levantada quando uma posição não pode ser selecionada
 
 # **Funções de Backtest**
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __backtest_close_position,  # Função para fechar posições em modo de backtest
-    __backtest_open_position,  # Função para abrir posições em modo de backtest
+    __backtest_position_close,  # Função para fechar posições em modo de backtest
+    __backtest_position_open,  # Função para abrir posições em modo de backtest
 )
 
 # **Classe de Conta**
-from algo_trading.sources.MetaTrader5_source.account.account import Account  # Classe `Account` para login e gerenciamento de informações de conta
+from algo_trading.sources.MetaTrader5_source.account.account import (
+    Account,
+)  # Classe `Account` para login e gerenciamento de informações de conta
 
 # **Bibliotecas de Dados**
 import pandas as pd  # Biblioteca utilizada para manipulação de datas e criação de séries temporais
@@ -34,9 +43,9 @@ import pandas as pd  # Biblioteca utilizada para manipulação de datas e criaç
 @pytest.fixture
 def account():
     """Fixture que cria uma instância de conta para os testes.
-    
+
     Simula o login em uma conta ao vivo.
-    
+
     Returns:
         Account: Instância de conta com dados configurados.
     """
@@ -73,7 +82,7 @@ def account():
         currency="USD",
         company="MetaTrader Company",
     )
-    
+
     return account
 
 
@@ -101,7 +110,7 @@ def test_backtest_close_position_success(account: Account):
         "open": 1.1300,
         "high": 1.1320,
         "low": 1.1280,
-        "close": 1.1250,  # Preço de fechamento (para simular BID)
+        "close": 1.12496,  # Preço de fechamento (para simular BID)
         "tick_volume": 200,
     }
     mock_time_index = pd.to_datetime(position_time)
@@ -109,16 +118,37 @@ def test_backtest_close_position_success(account: Account):
 
     # Configurações do manipulador de operações
     operation_handler = account.backtest_account_data.operation
-    operation_handler.last_candle = {symbol: last_candle}
-    operation_handler.contract_sizes = {symbol: 100_000}  # Tamanho do contrato padrão
-    operation_handler.tick_sizes = {symbol: 1e-05}
+    # Define os dados do novo símbolo como um dicionário
+    new_data = {
+        "tick_size": 1e-05,
+        "contract_size": 100_000,
+        "trade_calc_mode": ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_FOREX,
+        "swap_mode": ENUM_SYMBOL_SWAP_MODE.SYMBOL_SWAP_MODE_POINTS,
+        "swap_long": -1,
+        "swap_short": -0.7,
+        "swap_rollover3days": 3,
+        "volume_min": 0.01,
+        "volume_max": 500,
+        "volume_step": 0.01,
+        "volume_limit": 0,
+        "last_candle": last_candle,
+    }
 
+    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    new_row = pd.DataFrame([new_data], index=[symbol])
+
+    # Concatena o novo registro ao DataFrame existente
+    operation_handler.backtest_symbols_data = pd.concat(
+        [operation_handler.backtest_symbols_data, new_row]
+    )
 
     # **Configuração do modo hedge**
-    operation_handler.account_data.margin_mode = ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING  # Permite múltiplas posições no mesmo ativo
+    operation_handler.account_data.margin_mode = (
+        ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
+    )  # Permite múltiplas posições no mesmo ativo
 
     # **Abertura da posição inicial**
-    __backtest_open_position(
+    __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
         order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Ordem de compra a mercado
@@ -128,11 +158,11 @@ def test_backtest_close_position_success(account: Account):
         comment="Teste de Hedge Mode",
     )
     position = account.backtest_account_data.positions[-1]
-    
-    operation_handler.last_candle[symbol]["close"] = 1.1300
+
+    operation_handler.backtest_symbols_data.loc[symbol].last_candle.close = 1.1300
 
     # **Fechamento da posição**
-    __backtest_close_position(
+    __backtest_position_close(
         operation_class=operation_handler,
         position_ticket=position.ticket,
         commission=5.0,  # Comissão fictícia
@@ -141,19 +171,28 @@ def test_backtest_close_position_success(account: Account):
     )
 
     # **Verificações**
-    assert len(account.backtest_account_data.positions) == 0, "A posição deveria ter sido removida após o fechamento."
-    assert len(account.backtest_account_data.history_deals) == 3, "Deveria haver um deal no histórico após o fechamento."
+    assert (
+        len(account.backtest_account_data.positions) == 0
+    ), "A posição deveria ter sido removida após o fechamento."
+    assert (
+        len(account.backtest_account_data.history_deals) == 3
+    ), "Deveria haver um deal no histórico após o fechamento."
 
     deal: MqlTradeDeal = account.backtest_account_data.history_deals[-1]
-    
 
     assert deal.symbol == symbol, "O símbolo do deal está incorreto."
-    assert deal.type == ENUM_ORDER_TYPE.ORDER_TYPE_SELL, "O tipo de ordem de fechamento deveria ser SELL."
-    assert deal.volume == initial_volume, "O volume do deal deveria ser igual ao volume da posição."
+    assert (
+        deal.type == ENUM_ORDER_TYPE.ORDER_TYPE_SELL
+    ), "O tipo de ordem de fechamento deveria ser SELL."
+    assert (
+        deal.volume == initial_volume
+    ), "O volume do deal deveria ser igual ao volume da posição."
     assert deal.comment == "Close position test", "O comentário do deal está incorreto."
-    assert deal.profit == 500, "O lucro deveria ser positivo, já que a posição foi fechada com lucro."
+    assert (
+        deal.profit == 500
+    ), "O lucro deveria ser positivo, já que a posição foi fechada com lucro."
 
-    
+
 def test_backtest_close_position_not_found(account: Account):
     """
     Testa se a função `__backtest_close_position` levanta uma exceção ao tentar fechar uma posição inexistente.
@@ -163,7 +202,7 @@ def test_backtest_close_position_not_found(account: Account):
 
     # Tenta fechar uma posição com um `ticket` inexistente
     with pytest.raises(CouldNotSelectPosition, match=r"Could not select the position"):
-        __backtest_close_position(
+        __backtest_position_close(
             operation_class=account.backtest_account_data.operation,
             position_ticket=99999,  # Ticket inexistente
             comment="Close non-existent position",

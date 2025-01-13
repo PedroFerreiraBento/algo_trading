@@ -20,6 +20,8 @@ from algo_trading.sources.MetaTrader5_source.models.metatrader import (
     MqlTick,  # Modelo de tick contendo campos como time, bid, ask, last, etc.
     ENUM_TIMEFRAME,  # Enum para definição de timeframes (M1, H1, etc.)
     ENUM_COPY_TICKS,  # Enum para definição do tipo de cópia de ticks (ALL, BID, LAST, etc.)
+    ENUM_SYMBOL_CALC_MODE,
+    ENUM_SYMBOL_SWAP_MODE,
 )
 
 # Remove a variável de ambiente após a inicialização padrão
@@ -59,6 +61,8 @@ def mock_symbol():
             self.volume_min = 0.01  # Volume mínimo permitido
             self.volume_max = 100.0  # Volume máximo permitido
             self.volume_step = 0.01  # Incremento permitido no volume
+            self.volume_limit = 0.0  # Incremento permitido no volume
+            self.trade_calc_mode = ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_FOREX # Tipo de calculo de lucro e margem
             self.trade_tick_size = 0.0001  # Tamanho do tick (variação mínima de preço)
             self.trade_contract_size = 100000  # Tamanho padrão do contrato de 100.000 unidades
             self.trade_tick_value_profit = 1.0  # Valor por tick em cenário de lucro
@@ -67,7 +71,12 @@ def mock_symbol():
             self.currency_profit = "EUR"  # Moeda de lucro
             self.description = "Euro vs US Dollar"  # Descrição do ativo
             self.name = "EURUSD"  # Nome do símbolo
-
+            self.trade_calc_mode = ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_FOREX
+            self.swap_mode = ENUM_SYMBOL_SWAP_MODE.SYMBOL_SWAP_MODE_POINTS
+            self.swap_long = -1
+            self.swap_short = -.5
+            self.swap_rollover3days = 3
+            
     return MockSymbolInfo()
 
 

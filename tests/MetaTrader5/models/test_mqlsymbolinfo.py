@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timezone
-from algo_trading.sources.MetaTrader5_source.models.metatrader import MqlSymbolInfo
+from algo_trading.sources.MetaTrader5_source.models.metatrader import MqlSymbolInfo, ENUM_SYMBOL_CALC_MODE, ENUM_SYMBOL_SWAP_MODE
 from algo_trading.sources.MetaTrader5_source.utils.exceptions import NotExpectedParseType
 
 @pytest.fixture
@@ -13,9 +13,11 @@ def mock_symbol():
             self.digits = 5
             self.ask = 1.2345
             self.bid = 1.2340
+            self.trade_calc_mode = ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_FOREX  # Tipo de calculo de lucro e margem
             self.volume_min = 0.01
             self.volume_max = 100.0
             self.volume_step = 0.01
+            self.volume_limit = 0.0  # Incremento permitido no volume
             self.trade_tick_size = 0.0001
             self.trade_contract_size = 100000
             self.trade_tick_value_profit = 1.0
@@ -24,6 +26,11 @@ def mock_symbol():
             self.currency_profit = "EUR"
             self.description = "Euro vs US Dollar"
             self.name = "EURUSD"
+            self.trade_calc_mode = ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_FOREX
+            self.swap_mode = ENUM_SYMBOL_SWAP_MODE.SYMBOL_SWAP_MODE_POINTS
+            self.swap_long = -1
+            self.swap_short = -.5
+            self.swap_rollover3days = 3
 
     return MockSymbolInfo()
 

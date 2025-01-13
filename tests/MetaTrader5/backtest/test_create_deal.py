@@ -2,7 +2,9 @@
 import pytest  # Para criação e execução de testes unitários
 
 # Módulo de conta e informações do MetaTrader5
-from algo_trading.sources.MetaTrader5_source.account.account import Account  # Classe `Account` para gerenciamento de contas
+from algo_trading.sources.MetaTrader5_source.account.account import (
+    Account,
+)  # Classe `Account` para gerenciamento de contas
 
 # Modelos e enums relacionados ao MetaTrader5
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
@@ -13,6 +15,8 @@ from algo_trading.sources.MetaTrader5_source.models.metatrader import (
     ENUM_ACCOUNT_STOPOUT_MODE,  # Enum para tipo de stopout
     ENUM_ACCOUNT_MARGIN_MODE,  # Enum para modo de margem da conta
     ENUM_ORDER_TYPE_MARKET,  # Enum para ordens de mercado
+    ENUM_SYMBOL_SWAP_MODE,
+    ENUM_SYMBOL_CALC_MODE,
     MqlAccountInfo,  # Modelo com informações detalhadas sobre a conta do MetaTrader5
 )
 
@@ -23,15 +27,16 @@ import pandas as pd  # Para manipulação de dados em série temporal (últimos 
 # Funções para criação e manipulação de deals e posições
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
     __backtest_create_a_deal,  # Função interna para criação de deals no backtest
-    __backtest_open_position,  # Função interna para abrir posições no modo de backtest
+    __backtest_position_open,  # Função interna para abrir posições no modo de backtest
 )
+
 
 @pytest.fixture
 def account():
     """Fixture que cria uma instância de conta para os testes.
-    
+
     Simula o login em uma conta ao vivo.
-    
+
     Returns:
         Account: Instância de conta com dados configurados.
     """
@@ -68,13 +73,14 @@ def account():
         currency="USD",
         company="MetaTrader Company",
     )
-    
+
     return account
+
 
 def test_backtest_create_a_deal_buy_entry_in(account: Account):
     """
     Testa a função `__backtest_create_a_deal` com uma entrada do tipo BUY (`DEAL_ENTRY_IN`).
-    
+
     Verifica:
     1. Se o deal é criado corretamente.
     2. Se o lucro (`profit`) é 0 para uma nova entrada de compra.
@@ -84,9 +90,15 @@ def test_backtest_create_a_deal_buy_entry_in(account: Account):
         account (Account): Fixture que fornece uma conta de backtest pré-configurada.
     """
     # **Configuração da conta de backtest**
-    account.login_backtest(balance=5000, leverage=100)  # Inicia a conta com saldo de $5.000 e alavancagem 1:100
-    account.backtest_account_data.simulated_spread = 4  # Define o spread simulado para 4 pontos
-    account.backtest_account_data.magic_number = 123456  # Define o magic number da conta para identificar operações automáticas
+    account.login_backtest(
+        balance=5000, leverage=100
+    )  # Inicia a conta com saldo de $5.000 e alavancagem 1:100
+    account.backtest_account_data.simulated_spread = (
+        4  # Define o spread simulado para 4 pontos
+    )
+    account.backtest_account_data.magic_number = (
+        123456  # Define o magic number da conta para identificar operações automáticas
+    )
 
     # **Configuração da posição inicial**
     symbol = "EURUSD"  # Par de moedas negociado
@@ -109,16 +121,37 @@ def test_backtest_create_a_deal_buy_entry_in(account: Account):
     mock_time_index = pd.to_datetime(position_time)
     mock_series = pd.Series(mock_series_data, name=mock_time_index)
 
-    # Define o estado do mercado (último candle, tamanho do contrato e tick size)
-    operation_handler.last_candle = {symbol: mock_series}  # Último candle para o par de moedas
-    operation_handler.contract_sizes = {symbol: 100_000}  # Tamanho do contrato (100.000 unidades por lote)
-    operation_handler.tick_sizes = {symbol: 1e-05}  # Incremento mínimo de preço (0.00001 para 5 casas decimais)
+    # Define os dados do novo símbolo como um dicionário
+    new_data = {
+        "tick_size": 1e-05,
+        "contract_size": 100_000,
+        "trade_calc_mode": ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_FOREX,
+        "swap_mode": ENUM_SYMBOL_SWAP_MODE.SYMBOL_SWAP_MODE_POINTS,
+        "swap_long": -1,
+        "swap_short": -0.7,
+        "swap_rollover3days": 3,
+        "volume_min": 0.01,
+        "volume_max": 500,
+        "volume_step": 0.01,
+        "volume_limit": 0,
+        "last_candle": mock_series,
+    }
+
+    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    new_row = pd.DataFrame([new_data], index=[symbol])
+
+    # Concatena o novo registro ao DataFrame existente
+    operation_handler.backtest_symbols_data = pd.concat(
+        [operation_handler.backtest_symbols_data, new_row]
+    )
 
     # **Configuração do modo hedge**
-    operation_handler.account_data.margin_mode = ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING  # Permite múltiplas posições no mesmo ativo
+    operation_handler.account_data.margin_mode = (
+        ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
+    )  # Permite múltiplas posições no mesmo ativo
 
     # **Abertura da posição inicial**
-    __backtest_open_position(
+    __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
         order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Ordem de compra a mercado
@@ -129,7 +162,9 @@ def test_backtest_create_a_deal_buy_entry_in(account: Account):
     )
 
     # **Mock de posição aberta**
-    position = account.backtest_account_data.positions[0]  # Obtém a posição aberta após o `__backtest_open_position`
+    position = account.backtest_account_data.positions[
+        0
+    ]  # Obtém a posição aberta após o `__backtest_open_position`
 
     # **Criação do deal**
     deal_time = datetime(2025, 1, 3, 12, 0, tzinfo=timezone.utc)  # Data/hora do deal
@@ -152,15 +187,18 @@ def test_backtest_create_a_deal_buy_entry_in(account: Account):
     # **Verificações do Deal Criado**
     assert deal.symbol == symbol, "O símbolo do deal está incorreto."
     assert deal.type == ENUM_DEAL_TYPE.DEAL_TYPE_BUY, "O tipo de deal deveria ser BUY."
-    assert deal.entry == ENUM_DEAL_ENTRY.DEAL_ENTRY_IN, "A entrada do deal deveria ser IN."
+    assert (
+        deal.entry == ENUM_DEAL_ENTRY.DEAL_ENTRY_IN
+    ), "A entrada do deal deveria ser IN."
     assert deal.profit == 0, "O lucro deveria ser 0 para uma nova entrada de compra."
     assert deal.comment == comment, "O comentário do deal está incorreto."
     assert deal.magic == 123456, "O magic number do deal está incorreto."
 
+
 def test_backtest_create_a_deal_sell_entry_out(account: Account):
     """
     Testa a função `__backtest_create_a_deal` com uma saída parcial do tipo SELL (`DEAL_ENTRY_OUT`).
-    
+
     Verifica:
     1. Se o deal de fechamento parcial é criado corretamente.
     2. Se o lucro é positivo quando a posição é fechada com lucro.
@@ -170,8 +208,12 @@ def test_backtest_create_a_deal_sell_entry_out(account: Account):
         account (Account): Fixture que fornece uma conta de backtest pré-configurada.
     """
     # **Configuração da conta de backtest**
-    account.login_backtest(balance=5000, leverage=100)  # Inicia a conta com saldo de $5.000 e alavancagem 1:100
-    account.backtest_account_data.simulated_spread = 4  # Define o spread simulado para 4 pontos
+    account.login_backtest(
+        balance=5000, leverage=100
+    )  # Inicia a conta com saldo de $5.000 e alavancagem 1:100
+    account.backtest_account_data.simulated_spread = (
+        4  # Define o spread simulado para 4 pontos
+    )
     account.backtest_account_data.magic_number = 654321  # Define o magic number
 
     # **Configuração da posição inicial**
@@ -195,16 +237,37 @@ def test_backtest_create_a_deal_sell_entry_out(account: Account):
     mock_time_index = pd.to_datetime(position_time)
     mock_series = pd.Series(mock_series_data, name=mock_time_index)
 
-    # Define o estado do mercado (último candle, tamanho do contrato e tick size)
-    operation_handler.last_candle = {symbol: mock_series}
-    operation_handler.contract_sizes = {symbol: 100_000}  # Tamanho do contrato padrão
-    operation_handler.tick_sizes = {symbol: 1e-05}  # Incremento mínimo de preço
+    # Define os dados do novo símbolo como um dicionário
+    new_data = {
+        "tick_size": 1e-05,
+        "contract_size": 100_000,
+        "trade_calc_mode": ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_FOREX,
+        "swap_mode": ENUM_SYMBOL_SWAP_MODE.SYMBOL_SWAP_MODE_POINTS,
+        "swap_long": -1,
+        "swap_short": -0.7,
+        "swap_rollover3days": 3,
+        "volume_min": 0.01,
+        "volume_max": 500,
+        "volume_step": 0.01,
+        "volume_limit": 0,
+        "last_candle": mock_series,
+    }
+
+    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    new_row = pd.DataFrame([new_data], index=[symbol])
+
+    # Concatena o novo registro ao DataFrame existente
+    operation_handler.backtest_symbols_data = pd.concat(
+        [operation_handler.backtest_symbols_data, new_row]
+    )
 
     # **Configuração do modo hedge**
-    operation_handler.account_data.margin_mode = ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
+    operation_handler.account_data.margin_mode = (
+        ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
+    )
 
     # **Abertura de posição inicial de venda**
-    __backtest_open_position(
+    __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
         order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Ordem de venda a mercado
@@ -215,7 +278,9 @@ def test_backtest_create_a_deal_sell_entry_out(account: Account):
     )
 
     # **Mock de posição aberta**
-    position = account.backtest_account_data.positions[0]  # Obtém a posição aberta após o `__backtest_open_position`
+    position = account.backtest_account_data.positions[
+        0
+    ]  # Obtém a posição aberta após o `__backtest_open_position`
 
     # **Parâmetros do deal de fechamento parcial**
     deal_time = datetime(2025, 1, 3, 13, 0, tzinfo=timezone.utc)  # Data/hora do deal
@@ -238,17 +303,26 @@ def test_backtest_create_a_deal_sell_entry_out(account: Account):
     # **Verificações do Deal Criado**
     assert deal.symbol == symbol, "O símbolo do deal está incorreto."
     assert deal.type == ENUM_DEAL_TYPE.DEAL_TYPE_BUY, "O tipo de deal deveria ser BUY."
-    assert deal.entry == ENUM_DEAL_ENTRY.DEAL_ENTRY_OUT, "A entrada do deal deveria ser OUT."
-    assert deal.volume == partial_volume, "O volume do deal deveria ser igual ao volume de fechamento parcial."
-    assert deal.position_id == position.ticket, "O ID da posição no deal está incorreto."
-    assert deal.profit == 250, "O lucro deveria ser positivo para um fechamento parcial com preço favorável."
+    assert (
+        deal.entry == ENUM_DEAL_ENTRY.DEAL_ENTRY_OUT
+    ), "A entrada do deal deveria ser OUT."
+    assert (
+        deal.volume == partial_volume
+    ), "O volume do deal deveria ser igual ao volume de fechamento parcial."
+    assert (
+        deal.position_id == position.ticket
+    ), "O ID da posição no deal está incorreto."
+    assert (
+        deal.profit == 250
+    ), "O lucro deveria ser positivo para um fechamento parcial com preço favorável."
     assert deal.comment == comment, "O comentário do deal está incorreto."
     assert deal.magic == 654321, "O magic number do deal está incorreto."
+
 
 def test_backtest_create_a_deal_inout_reversal(account: Account):
     """
     Testa a função `__backtest_create_a_deal` com uma reversão (`DEAL_ENTRY_INOUT`).
-    
+
     Verifica:
     1. Se o deal de reversão é criado corretamente.
     2. Se o lucro da reversão é calculado corretamente.
@@ -258,8 +332,12 @@ def test_backtest_create_a_deal_inout_reversal(account: Account):
         account (Account): Fixture que fornece uma conta de backtest pré-configurada.
     """
     # **Configuração da conta de backtest**
-    account.login_backtest(balance=5000, leverage=100)  # Inicia a conta com saldo de $5.000 e alavancagem 1:100
-    account.backtest_account_data.simulated_spread = 4  # Define o spread simulado para 4 pontos
+    account.login_backtest(
+        balance=5000, leverage=100
+    )  # Inicia a conta com saldo de $5.000 e alavancagem 1:100
+    account.backtest_account_data.simulated_spread = (
+        4  # Define o spread simulado para 4 pontos
+    )
     account.backtest_account_data.magic_number = 789012  # Define o magic number
 
     # **Configuração da posição inicial**
@@ -283,16 +361,37 @@ def test_backtest_create_a_deal_inout_reversal(account: Account):
     mock_time_index = pd.to_datetime(position_time)
     mock_series = pd.Series(mock_series_data, name=mock_time_index)
 
-    # Define o estado do mercado (último candle, tamanho do contrato e tick size)
-    operation_handler.last_candle = {symbol: mock_series}
-    operation_handler.contract_sizes = {symbol: 100_000}  # Tamanho do contrato padrão
-    operation_handler.tick_sizes = {symbol: 1e-05}  # Incremento mínimo de preço
+    # Define os dados do novo símbolo como um dicionário
+    new_data = {
+        "tick_size": 1e-05,
+        "contract_size": 100_000,
+        "trade_calc_mode": ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_FOREX,
+        "swap_mode": ENUM_SYMBOL_SWAP_MODE.SYMBOL_SWAP_MODE_POINTS,
+        "swap_long": -1,
+        "swap_short": -0.7,
+        "swap_rollover3days": 3,
+        "volume_min": 0.01,
+        "volume_max": 500,
+        "volume_step": 0.01,
+        "volume_limit": 0,
+        "last_candle": mock_series,
+    }
+
+    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    new_row = pd.DataFrame([new_data], index=[symbol])
+
+    # Concatena o novo registro ao DataFrame existente
+    operation_handler.backtest_symbols_data = pd.concat(
+        [operation_handler.backtest_symbols_data, new_row]
+    )
 
     # **Configuração do modo hedge**
-    operation_handler.account_data.margin_mode = ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
+    operation_handler.account_data.margin_mode = (
+        ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
+    )
 
     # **Abertura de posição inicial de venda**
-    __backtest_open_position(
+    __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
         order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Ordem de venda a mercado
@@ -303,7 +402,9 @@ def test_backtest_create_a_deal_inout_reversal(account: Account):
     )
 
     # **Mock de posição aberta**
-    position = account.backtest_account_data.positions[0]  # Obtém a posição aberta após o `__backtest_open_position`
+    position = account.backtest_account_data.positions[
+        0
+    ]  # Obtém a posição aberta após o `__backtest_open_position`
 
     # **Parâmetros do deal de reversão**
     deal_time = datetime(2025, 1, 3, 14, 0, tzinfo=timezone.utc)  # Data/hora do deal
@@ -324,23 +425,34 @@ def test_backtest_create_a_deal_inout_reversal(account: Account):
     )
 
     # **Cálculo Esperado do Lucro**
-    contract_size = operation_handler.contract_sizes[symbol]
-    expected_profit = round((initial_price - close_price) * contract_size * position.volume, 5)  # (1.1300 - 1.1250) * 100.000 * 1 lote
+    contract_size = operation_handler.backtest_symbols_data.loc[symbol].contract_size
+    expected_profit = round(
+        (initial_price - close_price) * contract_size * position.volume, 2
+    )  # (1.1300 - 1.1250) * 100.000 * 1 lote
 
     # **Verificações do Deal Criado**
     assert deal.symbol == symbol, "O símbolo do deal está incorreto."
     assert deal.type == ENUM_DEAL_TYPE.DEAL_TYPE_BUY, "O tipo de deal deveria ser BUY."
-    assert deal.entry == ENUM_DEAL_ENTRY.DEAL_ENTRY_INOUT, "A entrada do deal deveria ser INOUT (reversão)."
-    assert deal.volume == reversal_volume, "O volume do deal deveria ser igual ao volume de reversão."
-    assert deal.position_id == position.ticket, "O ID da posição no deal está incorreto."
-    assert deal.profit == expected_profit, f"O lucro deveria ser {expected_profit} USD para uma reversão lucrativa."
+    assert (
+        deal.entry == ENUM_DEAL_ENTRY.DEAL_ENTRY_INOUT
+    ), "A entrada do deal deveria ser INOUT (reversão)."
+    assert (
+        deal.volume == reversal_volume
+    ), "O volume do deal deveria ser igual ao volume de reversão."
+    assert (
+        deal.position_id == position.ticket
+    ), "O ID da posição no deal está incorreto."
+    assert (
+        deal.profit == expected_profit
+    ), f"O lucro deveria ser {expected_profit} USD para uma reversão lucrativa."
     assert deal.comment == comment, "O comentário do deal está incorreto."
     assert deal.magic == 789012, "O magic number do deal está incorreto."
+
 
 def test_backtest_create_a_deal_no_order_id(account: Account):
     """
     Testa a função `__backtest_create_a_deal` com `order` como `None`.
-    
+
     Verifica:
     1. Se um ID aleatório é gerado automaticamente quando `order` não é fornecido.
     2. Se os atributos importantes do deal (símbolo, tipo de ordem, volume, comentário, order ID) estão corretos.
@@ -349,8 +461,12 @@ def test_backtest_create_a_deal_no_order_id(account: Account):
         account (Account): Fixture que fornece uma conta de backtest pré-configurada.
     """
     # **Configuração da conta de backtest**
-    account.login_backtest(balance=5000, leverage=100)  # Inicia a conta com saldo de $5.000 e alavancagem 1:100
-    account.backtest_account_data.simulated_spread = 4  # Define o spread simulado para 4 pontos
+    account.login_backtest(
+        balance=5000, leverage=100
+    )  # Inicia a conta com saldo de $5.000 e alavancagem 1:100
+    account.backtest_account_data.simulated_spread = (
+        4  # Define o spread simulado para 4 pontos
+    )
     account.backtest_account_data.magic_number = 123456  # Define o magic number
 
     # **Configuração da posição inicial**
@@ -374,16 +490,37 @@ def test_backtest_create_a_deal_no_order_id(account: Account):
     mock_time_index = pd.to_datetime(position_time)
     mock_series = pd.Series(mock_series_data, name=mock_time_index)
 
-    # Define o estado do mercado (último candle, tamanho do contrato e tick size)
-    operation_handler.last_candle = {symbol: mock_series}
-    operation_handler.contract_sizes = {symbol: 100_000}  # Tamanho do contrato padrão
-    operation_handler.tick_sizes = {symbol: 1e-05}  # Incremento mínimo de preço
+    # Define os dados do novo símbolo como um dicionário
+    new_data = {
+        "tick_size": 1e-05,
+        "contract_size": 100_000,
+        "trade_calc_mode": ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_FOREX,
+        "swap_mode": ENUM_SYMBOL_SWAP_MODE.SYMBOL_SWAP_MODE_POINTS,
+        "swap_long": -1,
+        "swap_short": -0.7,
+        "swap_rollover3days": 3,
+        "volume_min": 0.01,
+        "volume_max": 500,
+        "volume_step": 0.01,
+        "volume_limit": 0,
+        "last_candle": mock_series,
+    }
+
+    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    new_row = pd.DataFrame([new_data], index=[symbol])
+
+    # Concatena o novo registro ao DataFrame existente
+    operation_handler.backtest_symbols_data = pd.concat(
+        [operation_handler.backtest_symbols_data, new_row]
+    )
 
     # **Configuração do modo hedge**
-    operation_handler.account_data.margin_mode = ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
+    operation_handler.account_data.margin_mode = (
+        ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
+    )
 
     # **Abertura de posição inicial de compra**
-    __backtest_open_position(
+    __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
         order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Ordem de compra a mercado
@@ -394,7 +531,9 @@ def test_backtest_create_a_deal_no_order_id(account: Account):
     )
 
     # **Mock de posição aberta**
-    position = account.backtest_account_data.positions[0]  # Obtém a posição aberta após o `__backtest_open_position`
+    position = account.backtest_account_data.positions[
+        0
+    ]  # Obtém a posição aberta após o `__backtest_open_position`
 
     # **Parâmetros do deal de compra sem ID de ordem**
     deal_time = datetime(2025, 1, 3, 15, 0, tzinfo=timezone.utc)  # Data/hora do deal
@@ -418,7 +557,9 @@ def test_backtest_create_a_deal_no_order_id(account: Account):
     # **Verificações do Deal Criado**
     assert deal.symbol == symbol, "O símbolo do deal está incorreto."
     assert deal.type == ENUM_DEAL_TYPE.DEAL_TYPE_BUY, "O tipo de deal deveria ser BUY."
-    assert deal.volume == volume, "O volume do deal deveria ser igual ao volume da ordem."
+    assert (
+        deal.volume == volume
+    ), "O volume do deal deveria ser igual ao volume da ordem."
     assert deal.comment == comment, "O comentário do deal está incorreto."
     assert deal.magic == 123456, "O magic number do deal está incorreto."
     assert deal.order is not None, "O ID da ordem não deveria ser None."
