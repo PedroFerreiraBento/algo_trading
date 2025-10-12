@@ -1,29 +1,39 @@
-# Importações de bibliotecas padrão
-from datetime import datetime, timezone, timedelta  # Manipulação de datas e fusos horários
+# Standard library imports
+from datetime import datetime, timezone, timedelta  # Date/time handling and time zones
 
-# Importações de terceiros
-import MetaTrader5 as mt5  # Biblioteca MetaTrader5 para integração com a plataforma
-import numpy as np  # Operações numéricas e manipulação de arrays
-import pandas as pd  # Manipulação e análise de dados em formato tabular
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator, Field  # Validação e modelagem de dados com Pydantic
 
-# Tipagem estática
-from typing import Optional, List, TYPE_CHECKING, Type  # Tipos e suporte para forward references
+# Third-party imports
+import MetaTrader5 as mt5  # MetaTrader5 library integration
+import numpy as np  # Numerical operations and array handling
+import pandas as pd  # Tabular data manipulation and analysis
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator, Field  # Data validation and modeling with Pydantic
 
-# Enumeradores
-from enum import IntEnum, auto  # Criação de enumeradores para constantes
+# Static typing
+from typing import Optional, List, TYPE_CHECKING, Type  # Types and forward reference support
+from enum import IntEnum, auto  # Enumerations for constants
 
-# Importações locais (módulo interno)
-from algo_trading.sources.MetaTrader5_source.utils.metatrader import validate_mt5_ulong_size  # Validador para dados do MetaTrader5
-from algo_trading.sources.MetaTrader5_source.utils.exceptions import NotExpectedParseType  # Exceção personalizada para parsing
-from algo_trading.sources.MetaTrader5_source.utils.dates import get_timestamp_ms  # Função utilitária para timestamps
-
+# Local imports (internal module)
+from algo_trading.sources.MetaTrader5_source.utils.metatrader import validate_mt5_ulong_size  # Validator for MetaTrader5 ulong-sized integers
+from algo_trading.sources.MetaTrader5_source.utils.exceptions import NotExpectedParseType  # Custom exception for parsing
+from algo_trading.sources.MetaTrader5_source.utils.dates import get_timestamp_ms  # Utility function for millisecond timestamps
 
 from typing_extensions import Self
-import os    
+import os
+
+# Import only for type hints to avoid circular imports at runtime
 if TYPE_CHECKING:
     from algo_trading.sources.MetaTrader5_source.rates.rates import Rates
     from algo_trading.sources.MetaTrader5_source.operation.operation import Operation
+
+class BaseFastModel(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+        validate_assignment=False,
+        revalidate_instances='never',
+        use_enum_values=True,
+        strict=False,
+        populate_by_name=True,
+    )
 
 
 class ENUM_WEEKDAY(IntEnum):
@@ -64,68 +74,56 @@ class ENUM_COPY_TICKS(IntEnum):
 
 class ENUM_SYMBOL_CALC_MODE(IntEnum):
     """
-    Enumeração dos modos de cálculo de margem e lucro para diferentes instrumentos financeiros.
+    Enumeration of margin/profit calculation modes for different instruments.
 
-    Cada modo de cálculo representa a forma como o MetaTrader5 calcula o requisito de margem
-    e o lucro ou prejuízo das operações de diferentes tipos de instrumentos.
+    1. SYMBOL_CALC_MODE_FOREX (leveraged Forex)
+       - Margin: Lots * Contract_Size / Leverage * Margin_Rate
+       - Profit: (close_price - open_price) * Contract_Size * Lots
 
-    Args:
-        - FOREX: Mercado de câmbio com ou sem alavancagem.
-        - CFDs: Contratos por diferença.
-        - Futuros e Índices: Instrumentos derivativos negociados em bolsas.
-        - Ações e Títulos: Instrumentos negociados em bolsas.
-        - Colateral: Ativos não negociáveis que funcionam como garantia.
+    2. SYMBOL_CALC_MODE_FOREX_NO_LEVERAGE (non-leveraged Forex)
+       - Margin: Lots * Contract_Size * Margin_Rate
+       - Profit: (close_price - open_price) * Contract_Size * Lots
 
-    Abaixo estão os modos de cálculo disponíveis:
+    3. SYMBOL_CALC_MODE_FUTURES
+       - Margin: Lots * InitialMargin * Margin_Rate
+       - Profit: (close_price - open_price) * TickPrice / TickSize * Lots
 
-    1. **SYMBOL_CALC_MODE_FOREX**: Modo Forex com alavancagem.
-       - Margem: `Lots * Contract_Size / Leverage * Margin_Rate`
-       - Lucro: `(close_price - open_price) * Contract_Size * Lots`
+    4. SYMBOL_CALC_MODE_CFD (Contracts for Difference)
+       - Margin: Lots * ContractSize * MarketPrice * Margin_Rate
+       - Profit: (close_price - open_price) * Contract_Size * Lots
 
-    2. **SYMBOL_CALC_MODE_FOREX_NO_LEVERAGE**: Modo Forex sem alavancagem.
-       - Margem: `Lots * Contract_Size * Margin_Rate`
-       - Lucro: `(close_price - open_price) * Contract_Size * Lots`
+    5. SYMBOL_CALC_MODE_CFDINDEX (CFD indexes)
+       - Margin: (Lots * ContractSize * MarketPrice) * TickPrice / TickSize * Margin_Rate
+       - Profit: (close_price - open_price) * Contract_Size * Lots
 
-    3. **SYMBOL_CALC_MODE_FUTURES**: Modo Futuros.
-       - Margem: `Lots * InitialMargin * Margin_Rate`
-       - Lucro: `(close_price - open_price) * TickPrice / TickSize * Lots`
+    6. SYMBOL_CALC_MODE_CFDLEVERAGE (leveraged CFD)
+       - Margin: (Lots * ContractSize * MarketPrice) / Leverage * Margin_Rate
+       - Profit: (close_price - open_price) * Contract_Size * Lots
 
-    4. **SYMBOL_CALC_MODE_CFD**: Modo CFD (contrato por diferença).
-       - Margem: `Lots * ContractSize * MarketPrice * Margin_Rate`
-       - Lucro: `(close_price - open_price) * Contract_Size * Lots`
+    7. SYMBOL_CALC_MODE_EXCH_STOCKS (exchange stocks)
+       - Margin: Lots * ContractSize * LastPrice * Margin_Rate
+       - Profit: (close_price - open_price) * Contract_Size * Lots
 
-    5. **SYMBOL_CALC_MODE_CFDINDEX**: Modo CFD para índices.
-       - Margem: `(Lots * ContractSize * MarketPrice) * TickPrice / TickSize * Margin_Rate`
-       - Lucro: `(close_price - open_price) * Contract_Size * Lots`
+    8. SYMBOL_CALC_MODE_EXCH_FUTURES (exchange futures)
+       - Margin: Lots * InitialMargin * Margin_Rate OR Lots * MaintenanceMargin * Margin_Rate
+       - Profit: (close_price - open_price) * Lots * TickPrice / TickSize
 
-    6. **SYMBOL_CALC_MODE_CFDLEVERAGE**: Modo CFD com alavancagem.
-       - Margem: `(Lots * ContractSize * MarketPrice) / Leverage * Margin_Rate`
-       - Lucro: `(close_price - open_price) * Contract_Size * Lots`
+    9. SYMBOL_CALC_MODE_EXCH_BONDS (exchange bonds)
+       - Margin: Lots * ContractSize * FaceValue * open_price / 100
+       - Profit: Lots * close_price * FaceValue * Contract_Size + AccruedInterest * Lots * ContractSize
 
-    7. **SYMBOL_CALC_MODE_EXCH_STOCKS**: Modo para ações em bolsa.
-       - Margem: `Lots * ContractSize * LastPrice * Margin_Rate`
-       - Lucro: `(close_price - open_price) * Contract_Size * Lots`
+    10. SYMBOL_CALC_MODE_EXCH_STOCKS_MOEX (MOEX stocks)
+       - Margin: Lots * ContractSize * LastPrice * Margin_Rate
+       - Profit: (close_price - open_price) * Contract_Size * Lots
 
-    8. **SYMBOL_CALC_MODE_EXCH_FUTURES**: Modo para futuros em bolsa.
-       - Margem: `Lots * InitialMargin * Margin_Rate` ou `Lots * MaintenanceMargin * Margin_Rate`
-       - Lucro: `(close_price - open_price) * Lots * TickPrice / TickSize`
+    11. SYMBOL_CALC_MODE_EXCH_BONDS_MOEX (MOEX bonds)
+       - Margin: Lots * ContractSize * FaceValue * open_price / 100
+       - Profit: Lots * close_price * FaceValue * Contract_Size + AccruedInterest * Lots * ContractSize
 
-    9. **SYMBOL_CALC_MODE_EXCH_BONDS**: Modo para títulos em bolsa.
-        - Margem: `Lots * ContractSize * FaceValue * open_price / 100`
-        - Lucro: `Lots * close_price * FaceValue * Contract_Size + AccruedInterest * Lots * ContractSize`
-
-    10. **SYMBOL_CALC_MODE_EXCH_STOCKS_MOEX**: Modo para ações na bolsa MOEX.
-        - Margem: `Lots * ContractSize * LastPrice * Margin_Rate`
-        - Lucro: `(close_price - open_price) * Contract_Size * Lots`
-
-    11. **SYMBOL_CALC_MODE_EXCH_BONDS_MOEX**: Modo para títulos na bolsa MOEX.
-        - Margem: `Lots * ContractSize * FaceValue * open_price / 100`
-        - Lucro: `Lots * close_price * FaceValue * Contract_Size + AccruedInterest * Lots * ContractSize`
-
-    12. **SYMBOL_CALC_MODE_SERV_COLLATERAL**: Modo colateral (ativos não negociáveis).
-        - Margem: `0` (não aplicável)
-        - Lucro: `0` (não aplicável)
-        - Valor de mercado: `Lots * ContractSize * MarketPrice * LiquidityRate`
+    12. SYMBOL_CALC_MODE_SERV_COLLATERAL (collateral / non-tradable assets)
+       - Margin: 0 (n/a)
+       - Profit: 0 (n/a)
+       - Market value: Lots * ContractSize * MarketPrice * LiquidityRate
     """
     SYMBOL_CALC_MODE_FOREX: int = mt5.SYMBOL_CALC_MODE_FOREX
     SYMBOL_CALC_MODE_FOREX_NO_LEVERAGE: int = mt5.SYMBOL_CALC_MODE_FOREX_NO_LEVERAGE
@@ -143,40 +141,17 @@ class ENUM_SYMBOL_CALC_MODE(IntEnum):
 
 class ENUM_SYMBOL_SWAP_MODE(IntEnum):
     """
-    Enumeração dos modos de cálculo de swap para diferentes instrumentos financeiros.
+    Enumeration of swap calculation modes for different financial instruments.
 
-    Cada modo de swap representa como o MetaTrader5 calcula as taxas de swap para posições abertas.
-
-    Abaixo estão os modos de swap disponíveis:
-
-    1. **SYMBOL_SWAP_MODE_DISABLED**: Swaps desativados.
-       - Descrição: Não há cobrança de swaps.
-
-    2. **SYMBOL_SWAP_MODE_POINTS**: Swaps cobrados em pontos.
-       - Descrição: O swap é calculado e cobrado em pontos, dependendo da posição aberta.
-
-    3. **SYMBOL_SWAP_MODE_CURRENCY_SYMBOL**: Swaps cobrados na moeda base do símbolo.
-       - Descrição: O swap é calculado e cobrado em dinheiro, na moeda base do instrumento financeiro.
-
-    4. **SYMBOL_SWAP_MODE_CURRENCY_MARGIN**: Swaps cobrados na moeda de margem.
-       - Descrição: O swap é calculado e cobrado em dinheiro, na moeda utilizada para margem.
-
-    5. **SYMBOL_SWAP_MODE_CURRENCY_DEPOSIT**: Swaps cobrados na moeda do depósito.
-       - Descrição: O swap é calculado e cobrado em dinheiro, na moeda de depósito do cliente.
-
-    6. **SYMBOL_SWAP_MODE_INTEREST_CURRENT**: Swaps cobrados com base na taxa de juros anual especificada e preço atual.
-       - Descrição: O swap é calculado como juros anuais especificados com base no preço atual do instrumento financeiro.
-       - Observação: Considera-se um ano bancário padrão de 360 dias.
-
-    7. **SYMBOL_SWAP_MODE_INTEREST_OPEN**: Swaps cobrados com base na taxa de juros anual especificada e preço de abertura.
-       - Descrição: O swap é calculado como juros anuais especificados com base no preço de abertura da posição.
-       - Observação: Considera-se um ano bancário padrão de 360 dias.
-
-    8. **SYMBOL_SWAP_MODE_REOPEN_CURRENT**: Swaps cobrados reabrindo posições no preço de fechamento.
-       - Descrição: A posição é fechada no final do dia de negociação e reaberta no preço de fechamento do dia anterior, ajustado por um número de pontos.
-
-    9. **SYMBOL_SWAP_MODE_REOPEN_BID**: Swaps cobrados reabrindo posições no preço BID.
-        - Descrição: A posição é fechada no final do dia de negociação e reaberta no preço BID atual, ajustado por um número de pontos.
+    1. SYMBOL_SWAP_MODE_DISABLED: Swaps disabled (no charge).
+    2. SYMBOL_SWAP_MODE_POINTS: Swap charged in points depending on the open position.
+    3. SYMBOL_SWAP_MODE_CURRENCY_SYMBOL: Swap charged in the symbol base currency.
+    4. SYMBOL_SWAP_MODE_CURRENCY_MARGIN: Swap charged in the margin currency.
+    5. SYMBOL_SWAP_MODE_CURRENCY_DEPOSIT: Swap charged in the deposit currency.
+    6. SYMBOL_SWAP_MODE_INTEREST_CURRENT: Based on specified annual interest and current price (360-day banking year).
+    7. SYMBOL_SWAP_MODE_INTEREST_OPEN: Based on specified annual interest and open price (360-day banking year).
+    8. SYMBOL_SWAP_MODE_REOPEN_CURRENT: Close at end of day and reopen at prior close adjusted by points.
+    9. SYMBOL_SWAP_MODE_REOPEN_BID: Close at end of day and reopen at current BID adjusted by points.
     """
     SYMBOL_SWAP_MODE_DISABLED: int = mt5.SYMBOL_SWAP_MODE_DISABLED
     SYMBOL_SWAP_MODE_POINTS: int = mt5.SYMBOL_SWAP_MODE_POINTS
@@ -785,7 +760,7 @@ def validate_prices(
         raise ValueError("Invalid take profit")
     
     
-class MqlSymbolInfo(BaseModel):
+class MqlSymbolInfo(BaseFastModel):
     """Symbol info parsed from MetaTrader5.SymbolInfo."""
 
     """Symbol info
@@ -846,7 +821,7 @@ class MqlSymbolInfo(BaseModel):
             "trade_calc_mode", "swap_mode", "swap_long", "swap_short", "swap_rollover3days"
         ]
 
-        # Verifica se o objeto tem os atributos necessários
+        # Check if the object has the required attributes
         if not all(hasattr(symbol, attr) for attr in required_attrs):
             raise NotExpectedParseType(
                 f"{cls.__name__} expected an object with required attributes, got {type(symbol).__name__}"
@@ -882,7 +857,7 @@ class MqlSymbolInfo(BaseModel):
     @field_validator("bid", mode="after")
     def validate_bid(cls, value, info):
         """Ensure bid is less than or equal to ask."""
-        if value > info.data["ask"]:  # Acesse o valor do campo 'ask'
+        if value > info.data["ask"]:  # Access the value of the 'ask' field
             raise ValueError("bid must not exceed ask")
         return value
 
@@ -901,7 +876,7 @@ class MqlSymbolInfo(BaseModel):
         if volume_min is not None and volume_max is not None and volume_max <= volume_min:
             raise ValueError("volume_max must be greater than volume_min")
         return values
-    
+
     @model_validator(mode="after")
     def validate_positive_values(cls, values):
         """Ensure all numeric fields are positive."""
@@ -918,7 +893,7 @@ class MqlSymbolInfo(BaseModel):
         return values
 
 
-class MqlTradeRequest(BaseModel):
+class MqlTradeRequest(BaseFastModel):
     """Interaction between the client terminal and a trade server.
 
     Interaction between the client terminal and a trade server for executing the order placing operation is performed by using trade requests.
@@ -1306,12 +1281,17 @@ class MqlTradeRequest(BaseModel):
                 price=price, sl=sl, tp=tp, stoplimit=getattr(values, "stoplimit"),
                 order_type=getattr(values, "type")
             )
-
         return values
 
     @model_validator(mode="after")
     def __validate_required_fields(cls, values):
         action = getattr(values, "action")
+        # Normalize to enum for consistent behavior even when stored as int
+        try:
+            action_enum = ENUM_TRADE_REQUEST_ACTIONS(action)
+        except Exception:
+            action_enum = action
+
         required_fields = {
             ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL: ["symbol", "volume", "price", "type"],
             ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_PENDING: ["symbol", "volume", "price", "type"],
@@ -1322,17 +1302,21 @@ class MqlTradeRequest(BaseModel):
         }
 
         missing_fields = []
-        for field in required_fields.get(action, []):
+        for field in required_fields.get(action_enum, []):
             if getattr(values, field, None) is None:
                 missing_fields.append(field)
 
         if missing_fields:
-            raise ValueError(f"Missing required fields for action {action.name}: {', '.join(missing_fields)}")
+            # Provide readable name regardless of int/enum
+            action_name = getattr(action_enum, "name", str(action))
+            raise ValueError(
+                f"Missing required fields for action {action_name}: {', '.join(missing_fields)}"
+            )
 
         return values
     
 
-class MqlTradeResult(BaseModel):
+class MqlTradeResult(BaseFastModel):
     """Result of a trade request
 
     A trade server returns data about the trade request processing result as a special predefined structure of MqlTradeResult type.
@@ -1431,7 +1415,7 @@ class MqlTradeResult(BaseModel):
         return values
 
 
-class MqlPositionInfo(BaseModel):
+class MqlPositionInfo(BaseFastModel):
     """Position info
 
     Args:
@@ -1600,7 +1584,7 @@ class MqlPositionInfo(BaseModel):
         return values
 
 
-class MqlTradeOrder(BaseModel):
+class MqlTradeOrder(BaseFastModel):
     """Order data
 
     Args:
@@ -1795,7 +1779,7 @@ class MqlTradeOrder(BaseModel):
         return values
 
 
-class MqlTradeDeal(BaseModel):
+class MqlTradeDeal(BaseFastModel):
     """Trade Deal
 
     Args:
@@ -1909,7 +1893,7 @@ class MqlTradeDeal(BaseModel):
         return value
 
 
-class MqlTick(BaseModel):
+class MqlTick(BaseFastModel):
     """Tick data
 
     Args:
@@ -2002,7 +1986,7 @@ def _create_rates() -> "Rates":
     return Rates
 
 
-def rebuild_model(cls):
+def _rebuild_model(cls):
     """Decorator to call model_rebuild on the class after its definition."""
     if os.getenv('PYTEST_CURRENT_TEST') is None:
         # Importação tardia para evitar erro de circular import
@@ -2017,8 +2001,8 @@ def rebuild_model(cls):
     return cls
 
 
-@rebuild_model
-class MqlAccountInfo(BaseModel):
+@_rebuild_model
+class MqlAccountInfo(BaseFastModel):
     """Account Info
 
     Args:

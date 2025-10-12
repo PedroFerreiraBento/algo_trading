@@ -42,4 +42,4 @@ dependencies:
       # **MetaTrader 5 API**
       - MetaTrader5==5.0.4738  # Biblioteca oficial para conectar à plataforma MetaTrader 5.
       # **Validação de Dados e Modelos**
-      - pydantic==2.10.4  # Biblioteca para validação de dados e definição de modelos baseados em Python.
+      - pydantic==2.12.0  # Biblioteca para validação de dados e definição de modelos baseados em Python.

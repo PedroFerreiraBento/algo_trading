@@ -1,11 +1,11 @@
-# **Bibliotecas de Tipagem e Manipulação de Datas**
+# **Type Checking and Date Manipulation Libraries**
 from typing import (
     Callable,
     List,
     TYPE_CHECKING,
 )
 
-# Tipos usados para anotações de funções e listas tipadas
+# **Date Manipulation Libraries**
 from datetime import (
     datetime,
     timezone,
@@ -13,51 +13,51 @@ from datetime import (
     timedelta,
 )
 
-# Para manipulação de objetos de data/hora com fuso horário UTC
+# **Random Ticket Generation**
 import time as time_rand
 
-# Para geração dos tickets aleatórios
+# **Random Ticket Generation**
 import random
 
-# **Modelos e Enums do MetaTrader5**
+# **Models and Enums from MetaTrader5**
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    MqlPositionInfo,  # Modelo com informações sobre uma posição aberta
-    MqlTradeDeal,  # Modelo com informações sobre um deal de trade (resultado de execução)
-    MqlTradeOrder,  # Modelo com informações sobre uma ordem de trade pendente ou executada
-    ENUM_ACCOUNT_MARGIN_MODE,  # Enum para modos de margem da conta (ex.: netting, hedging)
-    ENUM_DEAL_TYPE,  # Enum para tipos de deal (ex.: DEAL_TYPE_BUY, DEAL_TYPE_SELL)
-    ENUM_DEAL_ENTRY,  # Enum para tipos de entrada no mercado (IN - entrada, OUT - saída, INOUT - reversão)
-    ENUM_DEAL_REASON,  # Enum para motivos de execução de um deal (ex.: expert, manual)
-    ENUM_ORDER_TYPE,  # Enum para tipos de ordens (compra, venda, limite, stop, etc.)
-    ENUM_ORDER_REASON,  # Enum para razões de execução de ordens (ex.: robô, usuário, stop-out)
-    ENUM_ORDER_TYPE_MARKET,  # Enum específico para ordens de mercado (compra/venda a mercado)
-    ENUM_ORDER_TYPE_PENDING,  # Enum específico para ordens pendentes (ex.: buy limit, sell stop)
-    ENUM_ORDER_STATE,  # Enum para estados de uma ordem (pendente, concluída, cancelada, etc.)
-    ENUM_POSITION_REASON,  # Enum para motivos de abertura de posição (ex.: expert advisor)
-    ENUM_POSITION_TYPE,  # Enum para tipos de posição aberta (ex.: buy/sell)
-    ENUM_ORDER_TYPE_TIME,  # Enum para tipos de ordens baseados em tempo (ex.: Good Till Canceled - GTC)
-    ENUM_SYMBOL_CALC_MODE,  # Enum para tipo de calculo de lucro e margin
+    MqlPositionInfo,  # Model with information about an open position
+    MqlTradeDeal,  # Model with information about a trade deal (execution result)
+    MqlTradeOrder,  # Model with information about a pending or executed trade order
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum for account margin modes (e.g., netting, hedging)
+    ENUM_DEAL_TYPE,  # Enum for deal types (e.g., DEAL_TYPE_BUY, DEAL_TYPE_SELL)
+    ENUM_DEAL_ENTRY,  # Enum for types of market entry (IN - entry, OUT - exit, INOUT - reversal)
+    ENUM_DEAL_REASON,  # Enum for reasons of deal execution (e.g., expert, manual)
+    ENUM_ORDER_TYPE,  # Enum for order types (buy, sell, limit, stop, etc.)
+    ENUM_ORDER_REASON,  # Enum for reasons of order execution (e.g., robot, user, stop-out)
+    ENUM_ORDER_TYPE_MARKET,  # Enum for market order types (buy market, sell market)
+    ENUM_ORDER_TYPE_PENDING,  # Enum for pending order types (buy limit, sell stop)
+    ENUM_ORDER_STATE,  # Enum for order states (pending, completed, canceled, etc.)
+    ENUM_POSITION_REASON,  # Enum for reasons of position opening (e.g., expert advisor)
+    ENUM_POSITION_TYPE,  # Enum for types of open positions (e.g.: buy/sell)
+    ENUM_ORDER_TYPE_TIME,  # Enum for order types based on time (e.g.: Good Till Canceled - GTC)
+    ENUM_SYMBOL_CALC_MODE,  # Enum for profit and margin calculation mode
     ENUM_ACCOUNT_STOPOUT_MODE,
     ENUM_SYMBOL_SWAP_MODE,
     validate_prices,
 )
 
 
-# **Utilitários para Funções de Datas, Trades e Exceções**
+# **Date Functions, Trades and Exceptions Utilities**
 from algo_trading.sources.MetaTrader5_source.utils.dates import (
     get_timestamp_ms,
-)  # Função que retorna timestamp em milissegundos
+)  # Function that returns timestamp in milliseconds
 from algo_trading.sources.MetaTrader5_source.utils.trades import (
-    compute_profit,  # Função que calcula o lucro ou prejuízo de uma posição com base nos preços e volumes
-    get_order,  # Função que busca uma ordem específica a partir do seu `ticket`
+    compute_profit,  # Function that calculates the profit or loss of a position based on prices and volumes
+    get_order,  # Function that searches for a specific order based on its `ticket`
 )
 from algo_trading.sources.MetaTrader5_source.utils.exceptions import (
     CouldNotSelectPosition,
     InsufficientMarginError,
-)  # Exceção personalizada para quando uma posição não pode ser selecionada
+)  # Custom exception for when a position cannot be selected
 
-# **Configuração de Logs**
-import logging  # Biblioteca de logging para registrar informações durante a execução
+# **Logging Configuration**
+import logging  # Logging library for registering information during execution
 
 import pandas as pd
 from decimal import Decimal
@@ -65,14 +65,14 @@ from decimal import Decimal
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)  # Configuração do formato e nível de logs
+)  # Logging configuration for format and level of logs
 
-# **Importação Condicional para Tipagem**
-# Importa `Operation` apenas em tempo de análise estática para evitar dependências cíclicas.
+# **Importation Conditional for Type Checking**
+# Imports `Operation` only at static analysis time to avoid circular dependencies.
 if TYPE_CHECKING:
     from algo_trading.sources.MetaTrader5_source.operation.operation import (
         Operation,
-    )  # Classe responsável por gerenciar as operações
+    )  # Class responsible for managing operations
 
 
 # Auxiliary Function ------------------------------------------------------------------------------
@@ -80,39 +80,39 @@ def __get_deal_type(
     order_type: ENUM_ORDER_TYPE,
 ) -> ENUM_DEAL_TYPE:
     """
-    Determina o tipo de deal com base no tipo de ordem (compra ou venda).
+    Determines the type of deal based on the order type (buy or sell).
 
     Args:
-        order_type (ENUM_ORDER_TYPE): Tipo de ordem (compra, venda, limite, stop, etc.).
+        order_type (ENUM_ORDER_TYPE): Order type (buy, sell, limit, stop, etc.).
 
     Raises:
-        TypeError: Levantado se o tipo de ordem for inválido ou não reconhecido.
+        TypeError: Raises if the order type is invalid or not recognized.
 
     Returns:
-        ENUM_DEAL_TYPE: Tipo de deal correspondente:
-            - `DEAL_TYPE_BUY`: Representa uma operação de compra.
-            - `DEAL_TYPE_SELL`: Representa uma operação de venda.
+        ENUM_DEAL_TYPE: Deal type corresponding to:
+            - `DEAL_TYPE_BUY`: Represents a buy operation.
+            - `DEAL_TYPE_SELL`: Represents a sell operation.
     """
 
-    # Verifica se o tipo de ordem é uma operação de compra (buy)
+    # Verify if the order type is a buy operation (buy)
     if order_type in (
-        ENUM_ORDER_TYPE.ORDER_TYPE_BUY,  # Ordem de compra a mercado.
-        ENUM_ORDER_TYPE.ORDER_TYPE_BUY_LIMIT,  # Ordem de compra limite.
-        ENUM_ORDER_TYPE.ORDER_TYPE_BUY_STOP,  # Ordem de compra stop.
-        ENUM_ORDER_TYPE.ORDER_TYPE_BUY_STOP_LIMIT,  # Ordem de compra stop com limite.
+        ENUM_ORDER_TYPE.ORDER_TYPE_BUY,  # Order of buy market.
+        ENUM_ORDER_TYPE.ORDER_TYPE_BUY_LIMIT,  # Order of buy limit.
+        ENUM_ORDER_TYPE.ORDER_TYPE_BUY_STOP,  # Order of buy stop.
+        ENUM_ORDER_TYPE.ORDER_TYPE_BUY_STOP_LIMIT,  # Order of buy stop limit.
     ):
-        return ENUM_DEAL_TYPE.DEAL_TYPE_BUY  # Retorna o tipo de deal "BUY".
+        return ENUM_DEAL_TYPE.DEAL_TYPE_BUY  # Returns the deal type "BUY".
 
-    # Verifica se o tipo de ordem é uma operação de venda (sell)
+    # Verify if the order type is a sell operation (sell)
     if order_type in (
-        ENUM_ORDER_TYPE.ORDER_TYPE_SELL,  # Ordem de venda a mercado.
-        ENUM_ORDER_TYPE.ORDER_TYPE_SELL_LIMIT,  # Ordem de venda limite.
-        ENUM_ORDER_TYPE.ORDER_TYPE_SELL_STOP,  # Ordem de venda stop.
-        ENUM_ORDER_TYPE.ORDER_TYPE_SELL_STOP_LIMIT,  # Ordem de venda stop com limite.
+        ENUM_ORDER_TYPE.ORDER_TYPE_SELL,  # Order of sell market.
+        ENUM_ORDER_TYPE.ORDER_TYPE_SELL_LIMIT,  # Order of sell limit.
+        ENUM_ORDER_TYPE.ORDER_TYPE_SELL_STOP,  # Order of sell stop.
+        ENUM_ORDER_TYPE.ORDER_TYPE_SELL_STOP_LIMIT,  # Order of sell stop limit.
     ):
-        return ENUM_DEAL_TYPE.DEAL_TYPE_SELL  # Retorna o tipo de deal "SELL".
+        return ENUM_DEAL_TYPE.DEAL_TYPE_SELL  # Returns the deal type "SELL".
 
-    # Lança um erro se o tipo de ordem não for reconhecido
+    # Raises an error if the order type is invalid or not recognized
     raise TypeError("Invalid order type")
 
 
@@ -122,24 +122,24 @@ def __get_entry(
     position: MqlPositionInfo,
 ) -> ENUM_DEAL_ENTRY:
     """
-    Determina o tipo de entrada do deal com base no volume da ordem, tipo de ordem
-    e direção da posição aberta.
+    Determines the type of deal entry based on the order volume, order type,
+    and direction of the open position.
 
     Args:
-        volume (float): Volume do deal (lote).
-        order_type (ENUM_ORDER_TYPE): Tipo de ordem (compra, venda, limite, stop, etc.).
-        position (MqlPositionInfo): Informações da posição aberta, incluindo tipo e volume.
+        volume (float): Deal volume (lot).
+        order_type (ENUM_ORDER_TYPE): Order type (buy, sell, limit, stop, etc.).
+        position (MqlPositionInfo): Position information, including type and volume.
 
     Returns:
-        ENUM_DEAL_ENTRY: Tipo de entrada do deal:
-            - `DEAL_ENTRY_IN`: Nova entrada (abertura de posição na mesma direção).
-            - `DEAL_ENTRY_OUT`: Fechamento total ou parcial da posição aberta.
-            - `DEAL_ENTRY_INOUT`: Reversão (fechamento e abertura de posição oposta).
+        ENUM_DEAL_ENTRY: Deal entry type:
+            - `DEAL_ENTRY_IN`: New entry (opening position in the same direction).
+            - `DEAL_ENTRY_OUT`: Partial or total closing of the existing position.
+            - `DEAL_ENTRY_INOUT`: Reversion (closing and opening position opposite).
     """
 
-    # **Verificação de direções opostas:**
-    # - Caso 1: A posição atual é "BUY" (compra) e a ordem é de "SELL" (venda).
-    # - Caso 2: A posição atual é "SELL" (venda) e a ordem é de "BUY" (compra).
+    # **Verification of opposite directions:**
+    # - Case 1: The current position is "BUY" (buy) and the order is "SELL" (sell).
+    # - Case 2: The current position is "SELL" (sell) and the order is "BUY" (buy).
     if (
         position.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
         and order_type
@@ -159,18 +159,18 @@ def __get_entry(
             ENUM_ORDER_TYPE.ORDER_TYPE_BUY_STOP_LIMIT,
         )
     ):
-        # **Caso 1: Fechamento total ou parcial da posição existente:**
+        # **Case 1: Partial or total closing of the existing position:**
         if volume <= position.volume:
             return (
                 ENUM_DEAL_ENTRY.DEAL_ENTRY_OUT
-            )  # Entrada de tipo "OUT" (fechamento da posição).
+            )  # Entry "OUT" (closes the position).
 
-        # **Caso 2: Reversão de posição:**
-        # - Quando o volume da nova ordem é maior que o volume da posição atual.
-        return ENUM_DEAL_ENTRY.DEAL_ENTRY_INOUT  # Entrada "INOUT" (reverte a posição).
+        # **Case 2: Reversion of position:**
+        # - When the volume of the new order is greater than the volume of the current position.
+        return ENUM_DEAL_ENTRY.DEAL_ENTRY_INOUT  # Entry "INOUT" (reverses the position).
 
-    # **Caso 3: Nova entrada (posição na mesma direção):**
-    # Retorna "IN" se a posição atual e a nova ordem têm a mesma direção.
+    # **Case 3: New entry (position in the same direction):**
+    # Returns "IN" if the current position and the new order have the same direction.
     return ENUM_DEAL_ENTRY.DEAL_ENTRY_IN
 
 
@@ -183,22 +183,22 @@ def __backtest_get_profit(
     position_type: ENUM_POSITION_TYPE,
 ) -> float:
     """
-    Calcula o lucro ou prejuízo de uma posição de backtest com base nos preços de abertura e fechamento,
-    volume negociado e moeda base da conta.
+    Calculates the profit or loss of a backtest position based on the opening and closing prices,
+    trading volume, and account base currency.
 
     Args:
-        operation_class (Operation): Classe de operação com dados de conversão e parâmetros de negociação.
-        symbol (str): Par de moedas (exemplo: "EURUSD").
-        price_open (float): Preço de abertura da posição.
-        price_close (float): Preço de fechamento da posição.
-        price_volume (float): Volume da posição em lotes.
-        position_type (ENUM_POSITION_TYPE): Tipo de posição (compra ou venda).
+        operation_class (Operation): Operation class with conversion data and trading parameters.
+        symbol (str): Currency pair (e.g., "EURUSD").
+        price_open (float): Opening price of the position.
+        price_close (float): Closing price of the position.
+        price_volume (float): Position volume in lots.
+        position_type (ENUM_POSITION_TYPE): Position type (buy or sell).
 
     Returns:
-        float: Lucro ou prejuízo calculado da posição.
+        float: Profit or loss calculated from the position.
     """
 
-    # Calcula o lucro da posição usando a função `compute_profit`.
+    # Calculate the profit of the position using the `compute_profit` function.
     profit: float = compute_profit(
         operation_class=operation_class,
         position_type=position_type,
@@ -212,90 +212,90 @@ def __backtest_get_profit(
 
 
 def __validate_operation_handler_attributes_for_symbol(
-    operation_class: "Operation",  # Objeto que gerencia os dados de operação e informações da conta
-    symbol: str,  # Par de moedas (ex.: "EURUSD")
+    operation_class: "Operation",  # Object that manages operation data and account information
+    symbol: str,  # Currency pair (e.g., "EURUSD")
 ):
     """
-    Valida os atributos necessários para o símbolo especificado no contexto de operações
-    de backtest. Verifica a existência de dados obrigatórios em um DataFrame indexado por símbolo.
+    Validates the necessary attributes for the specified symbol in the context of operations
+    of backtest. Verifies the existence of required data in a DataFrame indexed by symbol.
     """
-    # DataFrame com os dados de backtest
+    # DataFrame with backtest data
     symbols_data = operation_class.backtest_symbols_data
 
-    # Verifica se o índice do símbolo existe no DataFrame
+    # Verifies if the symbol index exists in the DataFrame
     if symbol not in symbols_data.index:
         raise ValueError(
-            f"Dados para o símbolo '{symbol}' estão ausentes no DataFrame."
+            f"The data for the symbol '{symbol}' is missing in the DataFrame."
         )
 
-    # Extração dos dados da linha correspondente ao símbolo
+    # Extraction of the data row corresponding to the symbol
     symbol_data = symbols_data.loc[symbol]
 
-    # Lista de colunas obrigatórias para validação
+    # List of required columns for validation
     required_columns = [
         "tick_size",  # Tick size (float)
         "contract_size",  # Contract size (int)
-        "trade_calc_mode",  # Enum para modo de cálculo (int)
-        "swap_mode",  # Enum para swap mode (int)
-        "swap_long",  # Taxa de swap long (float)
-        "swap_short",  # Taxa de swap short (float)
-        "swap_rollover3days",  # Dia de rollover (int)
-        "last_candle",  # Último candle (Series ou equivalente)
+        "trade_calc_mode",  # Enum for calculation mode (int)
+        "swap_mode",  # Enum for swap mode (int)
+        "swap_long",  # Swap long rate (float)
+        "swap_short",  # Swap short rate (float)
+        "swap_rollover3days",  # Rollover day (int)
+        "last_candle",  # Last candle (Series or equivalent)
     ]
 
-    # Verifica se todas as colunas obrigatórias estão presentes
+    # Verify if all required columns are present
     missing_columns = [
         col for col in required_columns if col not in symbols_data.columns
     ]
     if missing_columns:
         raise ValueError(
-            f"Os dados para o símbolo '{symbol}' estão faltando as colunas necessárias: {', '.join(missing_columns)}."
+            f"The data for the symbol '{symbol}' is missing the following required columns: {', '.join(missing_columns)}."
         )
 
-    # Validação de valores nulos ou ausentes para o símbolo específico
+    # Validation of null or missing values for the specific symbol
     if symbol_data.isnull().any():
         raise ValueError(
-            f"Os dados para o símbolo '{symbol}' contêm valores nulos ou ausentes nas seguintes colunas: "
+            f"The data for the symbol '{symbol}' contains null or missing values in the following columns: "
             f"{', '.join(symbol_data[symbol_data.isnull()].index)}."
         )
 
-    # Validação de valores críticos para o símbolo
+    # Critical value validation for the symbol
     if symbol_data["tick_size"] <= 0:
         raise ValueError(
-            f"O 'tick_size' deve ser maior que zero para o símbolo '{symbol}'."
+            f"The 'tick_size' should be greater than zero for the symbol '{symbol}'."
         )
     if symbol_data["contract_size"] <= 0:
         raise ValueError(
-            f"O 'contract_size' deve ser maior que zero para o símbolo '{symbol}'."
+            f"The 'contract_size' should be greater than zero for the symbol '{symbol}'."
         )
 
-    # Validação específica da coluna 'last_candle'
+    # Validation of the 'last_candle' column
     if (
         not isinstance(symbol_data["last_candle"], pd.Series)
         or symbol_data["last_candle"].empty
     ):
         raise ValueError(
-            f"A coluna 'last_candle' para o símbolo '{symbol}' é inválida ou está vazia."
+            f"The 'last_candle' column for the symbol '{symbol}' is invalid or empty."
         )
 
-    # Validação bem-sucedida
+    # Validation successful
     return True
 
 
 def __generate_unique_ticket():
     """
-    Gera um ticket único combinando timestamp em milissegundos e número aleatório.
+    Generates a unique ticket by combining the current timestamp in milliseconds and a random number.
 
     Returns:
-        int: Ticket único.
+        int: Unique ticket.
     """
-    # Timestamp atual em milissegundos
+    # Current timestamp in milliseconds
     timestamp_ms = int(time_rand.time() * 1000)
 
-    # Número aleatório grande para adicionar mais aleatoriedade (7 dígitos)
+    # Random large number to add more randomness (7 digits)
     random_part = random.randint(1000000, 9999999)
 
-    # Combina os dois para formar o ticket
+    # Combine both to form the ticket
     ticket = int(f"{timestamp_ms}{random_part}")
 
     return ticket
@@ -303,13 +303,13 @@ def __generate_unique_ticket():
 
 def __convert_order_to_position_type(order_type: ENUM_ORDER_TYPE) -> ENUM_POSITION_TYPE:
     """
-    Converte o tipo de ordem pendente para o tipo de posição correspondente (`BUY` ou `SELL`).
+    Converts the type of pending order to the corresponding position type (`BUY` or `SELL`).
 
     Args:
-        order_type (ENUM_ORDER_TYPE): Tipo de ordem pendente.
+        order_type (ENUM_ORDER_TYPE): Type of pending order.
 
     Returns:
-        ENUM_POSITION_TYPE: Tipo de posição correspondente.
+        ENUM_POSITION_TYPE: Type of position corresponding.
     """
     if order_type in {
         ENUM_ORDER_TYPE.ORDER_TYPE_BUY,
@@ -327,7 +327,7 @@ def __convert_order_to_position_type(order_type: ENUM_ORDER_TYPE) -> ENUM_POSITI
     }:
         return ENUM_POSITION_TYPE.POSITION_TYPE_SELL
 
-    raise ValueError(f"Tipo de ordem desconhecido: {order_type}")
+    raise ValueError(f"Unknown order type: {order_type}")
 
 
 def __validate_order_price(
@@ -340,44 +340,44 @@ def __validate_order_price(
     last_candle = operation_class.backtest_symbols_data.loc[symbol].last_candle
     
     spread = (operation_class.account_data.simulated_spread * operation_class.backtest_symbols_data.loc[symbol].tick_size)
-    # **Validações específicas por tipo de ordem**
+    # **Specific validations by order type**
     if order_type == ENUM_ORDER_TYPE.ORDER_TYPE_BUY_LIMIT:
         if price > last_candle["close"] + spread:
             raise ValueError(
-                f"Preço {price} para BUY_LIMIT deve ser menor que o preço atual ({last_candle['close']})"
+                f"Price {price} for BUY_LIMIT should be less than the current price ({last_candle['close']})"
             )
     elif order_type == ENUM_ORDER_TYPE.ORDER_TYPE_SELL_LIMIT:
         if price < last_candle["close"]:
             raise ValueError(
-                f"Preço {price} para SELL_LIMIT deve ser maior que o preço atual ({last_candle['close']})"
+                f"Price {price} for SELL_LIMIT should be greater than the current price ({last_candle['close']})"
             )
     elif order_type == ENUM_ORDER_TYPE.ORDER_TYPE_BUY_STOP:
         if price < last_candle["close"] + spread:
             raise ValueError(
-                f"Preço {price} para BUY_STOP deve ser maior que o preço atual ({last_candle['close']})"
+                f"Price {price} for BUY_STOP should be greater than the current price ({last_candle['close']})"
             )
     elif order_type == ENUM_ORDER_TYPE.ORDER_TYPE_SELL_STOP:
         if price > last_candle["close"]:
             raise ValueError(
-                f"Preço {price} para SELL_STOP deve ser menor que o preço atual ({last_candle['close']})"
+                f"Price {price} for SELL_STOP should be less than the current price ({last_candle['close']})"
             )
     elif order_type == ENUM_ORDER_TYPE.ORDER_TYPE_BUY_STOP_LIMIT:
         if price < last_candle["close"] + spread:
             raise ValueError(
-                f"Preço inicial {price} para BUY_STOP_LIMIT deve ser maior que o preço atual ({last_candle['close']})"
+                f"Initial price {price} for BUY_STOP_LIMIT should be greater than the current price ({last_candle['close']})"
             )
         if stop_limit > price:
             raise ValueError(
-                f"Preço de limite {stop_limit} para BUY_STOP_LIMIT deve ser menor que o preço inicial ({price})"
+                f"Limit price {stop_limit} for BUY_STOP_LIMIT should be less than the initial price ({price})"
             )
     elif order_type == ENUM_ORDER_TYPE.ORDER_TYPE_SELL_STOP_LIMIT:
         if price > last_candle["close"]:
             raise ValueError(
-                f"Preço inicial {price} para SELL_STOP_LIMIT deve ser menor que o preço atual ({last_candle['close']})"
+                f"Initial price {price} for SELL_STOP_LIMIT should be less than the current price ({last_candle['close']})"
             )
         if stop_limit < price:
             raise ValueError(
-                f"Preço de limite {stop_limit} para SELL_STOP_LIMIT deve ser maior que o preço inicial ({price})"
+                f"Limit price {stop_limit} for SELL_STOP_LIMIT should be greater than the initial price ({price})"
             )
 
 
@@ -388,16 +388,16 @@ def __validate_order_volume(
     volume: float,
 ):
     """
-    Valida o volume da ordem pendente com base nas restrições de volume do símbolo, considerando ordens pendentes e posições abertas.
+    Validates the volume of a pending order based on the symbol's volume restrictions, considering pending orders and open positions.
 
     Args:
-        operation_class (Operation): Classe de operação contendo os dados de backtest.
-        symbol (str): Símbolo do ativo (ex.: "EURUSD").
-        order_type (ENUM_ORDER_TYPE_PENDING): Tipo de ordem pendente (ex.: BUY_LIMIT, SELL_STOP).
-        volume (float): Volume da ordem pendente.
+        operation_class (Operation): Class of operation with conversion data and account information.
+        symbol (str): Currency pair (example: "EURUSD").
+        order_type (ENUM_ORDER_TYPE_PENDING): Type of pending order (BUY_LIMIT, SELL_STOP).
+        volume (float): Volume of the pending order.
 
     Raises:
-        ValueError: Se o volume não atender às restrições definidas.
+        ValueError: If the volume does not meet the defined restrictions.
     """
     symbol_data = operation_class.backtest_symbols_data.loc[symbol]
 
@@ -406,32 +406,32 @@ def __validate_order_volume(
     volume_step = symbol_data.volume_step
     volume_limit = symbol_data.volume_limit
 
-    # Verifica se o volume é inferior ao volume mínimo permitido
+    # Verify if the volume is below the minimum allowed volume
     if volume < volume_min:
         raise ValueError(
-            f"Volume {volume} abaixo do mínimo permitido ({volume_min}) para {symbol}."
+            f"Volume {volume} below the minimum allowed ({volume_min}) for {symbol}."
         )
 
-    # Verifica se o volume é superior ao volume máximo permitido
+    # Verify if the volume is above the maximum allowed volume
     if volume > volume_max:
         raise ValueError(
-            f"Volume {volume} acima do máximo permitido ({volume_max}) para {symbol}."
+            f"Volume {volume} above the maximum allowed ({volume_max}) for {symbol}."
         )
 
-    # Verifica se o volume respeita o incremento mínimo (volume_step)
+    # Verify if the volume is a multiple of the minimum increment (volume_step)
     if Decimal(str(volume)) % Decimal(str(volume_step)) != 0:
         raise ValueError(
-            f"Volume {volume} não é múltiplo do incremento mínimo ({volume_step}) para {symbol}."
+            f"Volume {volume} is not a multiple of the minimum increment ({volume_step}) for {symbol}."
         )
 
-    # Determina a direção com base no tipo de ordem (compra/venda)
+    # Determine the direction based on the order type (buy/sell)
     is_buy_order = order_type in {
         ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_BUY_LIMIT,
         ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_BUY_STOP,
         ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_BUY_STOP_LIMIT,
     }
 
-    # Calcula o volume agregado na mesma direção (ordens pendentes + posições abertas)
+    # Calculate the aggregated volume in the same direction (pending orders + open positions)
     total_volume_in_direction = sum(
         order.volume_current
         for order in operation_class.account_data.orders
@@ -454,10 +454,10 @@ def __validate_order_volume(
         and ((position.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY) if is_buy_order else (position.type == ENUM_POSITION_TYPE.POSITION_TYPE_SELL))
     )
 
-    # Verifica se o volume agregado não ultrapassa o limite definido
+    # Verify if the aggregated volume exceeds the defined limit
     if volume_limit > 0 and total_volume_in_direction + volume > volume_limit:
         raise ValueError(
-            f"O volume agregado na direção {'BUY' if is_buy_order else 'SELL'} ({total_volume_in_direction + volume}) excede o limite permitido ({volume_limit}) para {symbol}."
+            f"The aggregated volume in the direction {'BUY' if is_buy_order else 'SELL'} ({total_volume_in_direction + volume}) exceeds the limit allowed ({volume_limit}) for {symbol}."
         )
 
 
@@ -468,16 +468,16 @@ def __validate_position_volume(
     volume: float,
 ):
     """
-    Valida o volume de uma posição com base nas restrições de volume do símbolo.
+    Validates the volume of a position based on the symbol's volume restrictions.
 
     Args:
-        operation_class (Operation): Classe de operação contendo os dados de backtest.
-        symbol (str): Símbolo do ativo (ex.: "EURUSD").
-        position_type (ENUM_POSITION_TYPE): Tipo de ordem de mercado (ex.: BUY, SELL).
-        volume (float): Volume da posição.
+        operation_class (Operation): Class of operation with conversion data and account information.
+        symbol (str): Currency pair (example: "EURUSD").
+        position_type (ENUM_POSITION_TYPE): Type of market order (BUY, SELL).
+        volume (float): Position volume.
 
     Raises:
-        ValueError: Se o volume não atender às restrições definidas.
+        ValueError: If the volume does not meet the defined restrictions.
     """
     symbol_data = operation_class.backtest_symbols_data.loc[symbol]
 
@@ -486,36 +486,36 @@ def __validate_position_volume(
     volume_step = symbol_data.volume_step
     volume_limit = symbol_data.volume_limit
 
-    # Verifica se o volume é inferior ao volume mínimo permitido
+    # Verify if the volume is below the minimum allowed volume
     if volume < volume_min:
         raise ValueError(
-            f"Volume {volume} abaixo do mínimo permitido ({volume_min}) para {symbol}."
+            f"Volume {volume} below the minimum allowed ({volume_min}) for {symbol}."
         )
 
-    # Verifica se o volume é superior ao volume máximo permitido
+    # Verify if the volume is above the maximum allowed volume
     if volume > volume_max:
         raise ValueError(
-            f"Volume {volume} acima do máximo permitido ({volume_max}) para {symbol}."
+            f"Volume {volume} above the maximum allowed ({volume_max}) for {symbol}."
         )
 
-    # Verifica se o volume respeita o incremento mínimo (volume_step)
+    # Verify if the volume is a multiple of the minimum increment (volume_step)
     if Decimal(str(volume)) % Decimal(str(volume_step)) != 0:
         raise ValueError(
-            f"Volume {volume} não é múltiplo do incremento mínimo ({volume_step}) para {symbol}."
+            f"Volume {volume} is not a multiple of the minimum increment ({volume_step}) for {symbol}."
         )
 
-    # Calcula o volume agregado na direção da ordem (considerando posições abertas e ordens pendentes)
+    # Calculate the aggregated volume in the direction of the order (considering open positions and pending orders)
     total_volume_in_direction = sum(
         pos.volume
         for pos in operation_class.account_data.positions
         if pos.symbol == symbol and pos.type == position_type
     )
 
-    # Verifica se o volume agregado não ultrapassa o limite definido
+    # Verify if the aggregated volume does not exceed the defined limit
     if volume_limit > 0 and total_volume_in_direction + volume > volume_limit:
         raise ValueError(
-            f"O volume agregado na direção {position_type.name} ({total_volume_in_direction + volume}) "
-            f"excede o limite permitido ({volume_limit}) para {symbol}."
+            f"The aggregated volume in the direction {position_type.name} ({total_volume_in_direction + volume}) "
+            f"exceeds the limit allowed ({volume_limit}) for {symbol}."
         )
 
 # Create Deal -------------------------------------------------------------------------------------
@@ -533,39 +533,39 @@ def __backtest_create_a_deal(
     comment: str = "",
 ) -> MqlTradeDeal:
     """
-    Cria um deal durante o backtest e atualiza os dados da conta se for um fechamento ou reversão de posição.
+    Creates a deal during the backtest and updates the account data if it is a closing or reversal of a position.
 
     Args:
-        operation_class (Operation): Classe de operação com dados de conversão e informações da conta.
-        symbol (str): Par de moedas (exemplo: "EURUSD").
-        deal_time (datetime): Data e hora do deal.
-        order_type (ENUM_ORDER_TYPE): Tipo de ordem (compra, venda, limite, etc.).
-        volume (float): Volume da ordem em lotes.
-        price (float): Preço da execução do deal.
-        position (MqlPositionInfo): Informações da posição aberta (tipo, volume, preço de abertura, etc.).
-        fee (float, optional): Taxa aplicada à ordem. Padrão: 0.
-        commission (float, optional): Comissão aplicada à ordem. Padrão: 0.
-        order (int, optional): ID da ordem. Se `None`, será gerado automaticamente.
-        comment (str, optional): Comentário sobre o deal. Padrão: "".
+        operation_class (Operation): Class of operation with conversion data and account information.
+        symbol (str): Currency pair (example: "EURUSD").
+        deal_time (datetime): Deal time.
+        order_type (ENUM_ORDER_TYPE): Order type (buy, sell, limit, etc.).
+        volume (float): Order volume in lots.
+        price (float): Execution price of the deal.
+        position (MqlPositionInfo): Information of the open position (type, volume, opening price, etc.).
+        fee (float, optional): Fee applied to the order. Default: 0.
+        commission (float, optional): Commission applied to the order. Default: 0.
+        order (int, optional): ID of the order. If `None`, will be generated automatically.
+        comment (str, optional): Comment about the deal. Default: "".
 
     Returns:
-        MqlTradeDeal: Objeto contendo os detalhes do deal.
+        MqlTradeDeal: Object containing the deal details.
     """
-    # **1. Geração do ticket do deal**
+    # **1. Deal ticket generation**
     random_ticket = __generate_unique_ticket()
 
-    # **2. Definição do ID da ordem**
+    # **2. Definition of the order ID**
     order_id = (
         order if order is not None else get_timestamp_ms(datetime.now(timezone.utc))
     )
 
-    # **3. Determinação do tipo de deal (BUY/SELL)**
+    # **3. Determination of the deal type (BUY/SELL)**
     deal_type = __get_deal_type(order_type=order_type)
 
-    # **4. Determinação do tipo de entrada (IN, OUT, INOUT)**
+    # **4. Determination of the entry type (IN, OUT, INOUT)**
     entry = __get_entry(order_type=order_type, volume=volume, position=position)
 
-    # **5. Cálculo do lucro do deal**
+    # **5. Profit Calculation for the Deal**
     if entry != ENUM_DEAL_ENTRY.DEAL_ENTRY_IN:
         close_volume = (
             volume if entry != ENUM_DEAL_ENTRY.DEAL_ENTRY_INOUT else position.volume
@@ -580,36 +580,36 @@ def __backtest_create_a_deal(
             price_volume=close_volume,
         )
     else:
-        profit = 0  # Entradas não têm lucro imediatamente
+        profit = 0  # Entries do not have profit immediately
 
-    # **6. Cálculo do Swap Proporcional ao Deal**
+    # **6. Swap Proportional to Deal Calculation**
     if volume <= position.volume:
-        # Fechamento parcial ou total: calcula o swap proporcional
+        # Partial or total closing: calculates the proportional swap
         swap_deal = position.swap * (volume / position.volume) if position.swap else 0
-        position.swap -= swap_deal  # Atualiza o swap restante na posição
+        position.swap -= swap_deal  # Updates the remaining swap of the position
     else:
-        # Reversão: aplica todo o swap restante da posição e inicia com swap zero para o volume adicional
-        swap_deal = position.swap  # Aplica todo o swap da posição
-        position.swap = 0  # Zera o swap na posição
-        volume_excedente = volume - position.volume  # Volume que reverteu a direção
+        # Reversal: applies the remaining swap of the position and starts with swap zero for the additional volume
+        swap_deal = position.swap  # Applies the remaining swap of the position
+        position.swap = 0  # Sets the swap to zero for the additional volume
+        volume_excedente = volume - position.volume  # Volume that reversed the direction
         logging.info(
-            f"[REVERSE] Reversão detectada - Volume excedente: {volume_excedente} lotes"
+            f"[REVERSAL] Reversion detected - Excedent volume: {volume_excedente} lots"
         )
 
-    # **7. Ajuste do profit da conta para saídas e reversões**
+    # **7. Adjust the account profit for exits and reversals**
     if entry != ENUM_DEAL_ENTRY.DEAL_ENTRY_IN:
-        # Reduz o `profit` total das posições abertas
+        # Reduces the total profit of open positions
         operation_class.account_data.profit -= position.profit
 
-        # Atualiza o saldo da conta com o lucro/prejuízo do fechamento
+        # Updates the account balance with the profit/loss from the closing
         operation_class.account_data.balance = round(
             operation_class.account_data.balance + profit + swap_deal, 2
         )
 
-        # Recalcula a margem após o fechamento/reversão
+        # Recalculates the margin after closing/reversal
         __backtest_account_update_margin(operation_class=operation_class)
 
-    # **8. Criação do objeto `MqlTradeDeal`**
+    # **8. Deal Object Creation**
     deal = MqlTradeDeal(
         symbol=symbol,
         ticket=random_ticket,
@@ -622,7 +622,7 @@ def __backtest_create_a_deal(
         volume=volume,
         price=price,
         commission=commission,
-        swap=round(swap_deal, 2),  # Swap aplicado ao deal
+        swap=round(swap_deal, 2),  # Swap applied to the deal
         profit=profit,
         fee=fee,
         comment=comment,
@@ -631,11 +631,11 @@ def __backtest_create_a_deal(
         external_id=None,
     )
 
-    # **9. Log do Deal**
+    # **9. Deal Log**
     logging.info(
-        f"[DEAL] {symbol} - Ticket: {random_ticket} | Tipo: {'BUY' if deal_type == ENUM_DEAL_TYPE.DEAL_TYPE_BUY else 'SELL'} "
-        f"| Volume: {volume} | Preço: {price:.5f} | Lucro: {profit:.2f} | Swap Aplicado: {swap_deal:.2f} "
-        f"| Saldo Atualizado: {operation_class.account_data.balance:.2f}"
+        f"[DEAL] {symbol} - Ticket: {random_ticket} | Type: {'BUY' if deal_type == ENUM_DEAL_TYPE.DEAL_TYPE_BUY else 'SELL'} "
+        f"| Volume: {volume} | Price: {price:.5f} | Profit: {profit:.2f} | Swap Applied: {swap_deal:.2f} "
+        f"| Updated Balance: {operation_class.account_data.balance:.2f}"
     )
 
     return deal
@@ -656,69 +656,69 @@ def __hedge_create_position_and_deal(
     comment: str = "",
 ) -> None:
     """
-    Cria uma nova posição e um deal correspondente em uma conta de backtest com hedge habilitado.
+    Creates a new position and a corresponding deal in a backtest account with hedge enabled.
 
     Args:
-        operation_class (Operation): Classe de operação contendo dados da conta e métodos auxiliares.
-        symbol (str): Par de moedas negociado (ex.: "EURUSD").
-        order_type (ENUM_ORDER_TYPE_MARKET): Tipo de ordem de mercado (BUY/SELL).
-        position_time (datetime): Momento de criação da posição.
-        price (float): Preço de execução da ordem.
-        volume (float): Volume da ordem em lotes.
-        stop_price (float, optional): Preço de stop-loss. Defaults to 0.
-        profit_price (float, optional): Preço de take-profit. Defaults to 0.
-        commission (float, optional): Comissão aplicada ao deal. Defaults to 0.
-        fee (float, optional): Taxas adicionais aplicadas ao deal. Defaults to 0.
-        comment (str, optional): Comentário opcional sobre a operação. Defaults to "".
+        operation_class (Operation): Operation class containing account data and auxiliary methods.
+        symbol (str): Currency pair being traded (e.g., "EURUSD").
+        order_type (ENUM_ORDER_TYPE_MARKET): Type of market order (BUY/SELL).
+        position_time (datetime): Position creation time.
+        price (float): Execution price of the order.
+        volume (float): Order volume in lots.
+        stop_price (float, optional): Stop-loss price. Defaults to 0.
+        profit_price (float, optional): Take-profit price. Defaults to 0.
+        commission (float, optional): Commission applied to the deal. Defaults to 0.
+        fee (float, optional): Additional fee applied to the deal. Defaults to 0.
+        comment (str, optional): Optional comment about the operation. Defaults to "".
 
     Returns:
-        None: A função não retorna nada, mas atualiza os dados de posição e histórico de deals.
+        None: The function does not return anything, but updates the position and deal history.
     """
-    # Converte o tipo de ordem de mercado (BUY/SELL) para o tipo de posição correspondente.
+    # Converts the type of market order (BUY/SELL) to the corresponding position type.
     position_type = __convert_order_to_position_type(order_type)
 
-    # Criação do objeto `MqlPositionInfo` representando a posição aberta.
+    # Creation of the `MqlPositionInfo` object representing the opened position.
     position = MqlPositionInfo(
-        ticket=__generate_unique_ticket(),  # Ticket único gerado com timestamp.
-        time=position_time,  # Tempo de abertura da posição.
-        time_msc=position_time,  # Tempo com precisão de milissegundos.
-        time_update=position_time,  # Tempo da última atualização (inicialmente igual ao de abertura).
-        time_update_msc=position_time,  # Tempo com precisão em milissegundos.
-        type=position_type,  # Tipo de posição (compra/venda).
-        magic=operation_class.account_data.magic_number,  # Identificador do robô/expert.
-        identifier=__generate_unique_ticket(),  # Identificador único da posição.
-        reason=ENUM_POSITION_REASON.POSITION_REASON_EXPERT,  # Razão da abertura (expert advisor).
-        volume=volume,  # Volume da posição em lotes.
-        price_open=price,  # Preço de abertura da posição.
-        price_current=price,  # Preço atual da posição (inicialmente igual ao preço de abertura).
-        sl=stop_price,  # Preço de stop-loss.
-        tp=profit_price,  # Preço de take-profit.
-        swap=0,  # Swap (não aplicável no backtest).
-        profit=0,  # Lucro (inicialmente zero).
-        symbol=symbol,  # Símbolo negociado (par de moedas).
-        comment=comment,  # Comentário opcional.
-        external_id=None,  # ID externo (não utilizado no backtest).
+        ticket=__generate_unique_ticket(),  # Unique ticket generated with timestamp.
+        time=position_time,  # Position creation time.
+        time_msc=position_time,  # Time with millisecond precision.
+        time_update=position_time,  # Last update time (initially equal to the opening time).
+        time_update_msc=position_time,  # Time with millisecond precision.
+        type=position_type,  # Position type (buy/sell).
+        magic=operation_class.account_data.magic_number,  # Robot/expert identifier.
+        identifier=__generate_unique_ticket(),  # Unique position identifier.
+        reason=ENUM_POSITION_REASON.POSITION_REASON_EXPERT,  # Reason for opening (expert advisor).
+        volume=volume,  # Position volume in lots.
+        price_open=price,  # Opening price of the position.
+        price_current=price,  # Current price of the position (initially equal to the opening price).
+        sl=stop_price,  # Stop-loss price.
+        tp=profit_price,  # Take-profit price.
+        swap=0,  # Swap (not applicable in backtest).
+        profit=0,  # Profit (initially zero).
+        symbol=symbol,  # Currency pair (currency pair).
+        comment=comment,  # Optional comment.
+        external_id=None,  # External ID (not used in backtest).
     )
 
-    # Criação de um `MqlTradeDeal` correspondente à nova posição.
+    # Creation of a `MqlTradeDeal` corresponding to the new position.
     deal = __backtest_create_a_deal(
-        operation_class=operation_class,  # Classe de operação associada.
-        position=position,  # Posição para a qual o deal será criado.
-        symbol=symbol,  # Par de moedas do deal.
-        order_type=order_type,  # Tipo de ordem associada ao deal (BUY/SELL).
-        deal_time=position.time,  # Tempo do deal.
-        price=position.price_current,  # Preço de execução do deal.
-        volume=volume,  # Volume do deal.
-        fee=fee,  # Taxa adicional.
-        commission=commission,  # Comissão aplicada.
-        order=None,  # ID da ordem (None significa que será gerado um novo ID automaticamente).
-        comment=comment,  # Comentário opcional.
+        operation_class=operation_class,  # Operation class associated.
+        position=position,  # Position for which the deal will be created.
+        symbol=symbol,  # Currency pair of the deal.
+        order_type=order_type,  # Type of order associated with the deal (BUY/SELL).
+        deal_time=position.time,  # Deal time.
+        price=position.price_current,  # Execution price of the deal.
+        volume=volume,  # Deal volume in lots.
+        fee=fee,  # Additional fee applied to the deal.
+        commission=commission,  # Commission applied to the deal.
+        order=None,  # Order ID (None means that a new ID will be automatically generated).
+        comment=comment,  # Optional comment about the deal.
     )
 
-    # Adiciona a nova posição ao conjunto de posições abertas.
+    # Adds the new position to the set of open positions.
     operation_class.account_data.positions.append(position)
 
-    # Adiciona o deal ao histórico de deals.
+    # Adds the deal to the history of deals.
     operation_class.account_data.history_deals.append(deal)
 
 
@@ -736,68 +736,67 @@ def __netting_create_position_and_deal(
     comment: str = "",
 ) -> None:
     """
-    Cria ou atualiza uma posição em uma conta de backtest com netting habilitado.
+    Creates or updates a position in a backtest account with netting enabled.
 
-    Em contas netting, é mantida apenas uma posição agregada por símbolo.
-    Dependendo do tipo de operação (compra/venda) e do volume, pode ocorrer
-    fechamento parcial, total ou reversão de posição.
+    In netting accounts, only one aggregated position is maintained per symbol.
+    Depending on the type of operation (buy/sell) and the volume, partial, total, or position reversal may occur.
 
     Args:
-        operation_class (Operation): Classe de operação contendo dados da conta e métodos auxiliares.
-        symbol (str): Par de moedas negociado (ex.: "EURUSD").
-        order_type (ENUM_ORDER_TYPE_MARKET): Tipo de ordem de mercado (BUY/SELL).
-        position_time (datetime): Momento de criação da posição.
-        price (float): Preço de execução da ordem.
-        volume (float): Volume da ordem em lotes.
-        stop_price (float, optional): Preço de stop-loss. Defaults to 0.
-        profit_price (float, optional): Preço de take-profit. Defaults to 0.
-        commission (float, optional): Comissão aplicada ao deal. Defaults to 0.
-        fee (float, optional): Taxa adicional aplicada ao deal. Defaults to 0.
-        comment (str, optional): Comentário opcional sobre a operação. Defaults to "".
+        operation_class (Operation): Operation class containing account data and auxiliary methods.
+        symbol (str): Currency pair being traded (e.g., "EURUSD").
+        order_type (ENUM_ORDER_TYPE_MARKET): Type of market order (BUY/SELL).
+        position_time (datetime): Position creation time.
+        price (float): Execution price of the order.
+        volume (float): Order volume in lots.
+        stop_price (float, optional): Stop-loss price. Defaults to 0.
+        profit_price (float, optional): Take-profit price. Defaults to 0.
+        commission (float, optional): Commission applied to the deal. Defaults to 0.
+        fee (float, optional): Additional fee applied to the deal. Defaults to 0.
+        comment (str, optional): Optional comment about the operation. Defaults to "".
 
     Returns:
-        None: A função não retorna nada, mas atualiza os dados de posição e histórico de deals.
+        None: The function does not return anything, but updates the position and deal history.
     """
-    # Converte o tipo de ordem de mercado (BUY/SELL) para o tipo de posição correspondente.
+    # Converts the type of market order (BUY/SELL) to the corresponding position type.
     position_type = __convert_order_to_position_type(order_type)
 
-    # Criação do objeto `MqlPositionInfo` representando a posição aberta.
+    # Creation of the `MqlPositionInfo` object representing the opened position.
     position = MqlPositionInfo(
-        ticket=__generate_unique_ticket(),  # Ticket único gerado com timestamp.
-        time=position_time,  # Tempo de abertura da posição.
-        time_msc=position_time,  # Tempo com precisão de milissegundos.
-        time_update=position_time,  # Tempo da última atualização (inicialmente igual ao de abertura).
-        time_update_msc=position_time,  # Tempo com precisão em milissegundos.
-        type=position_type,  # Tipo de posição (compra/venda).
-        magic=operation_class.account_data.magic_number,  # Identificador do robô/expert.
-        identifier=__generate_unique_ticket(),  # Identificador único da posição.
-        reason=ENUM_POSITION_REASON.POSITION_REASON_EXPERT,  # Razão da abertura (expert advisor).
-        volume=volume,  # Volume da posição em lotes.
-        price_open=price,  # Preço de abertura da posição.
-        price_current=price,  # Preço atual da posição (inicialmente igual ao preço de abertura).
-        sl=stop_price,  # Preço de stop-loss.
-        tp=profit_price,  # Preço de take-profit.
-        swap=0,  # Swap (não aplicável no backtest).
-        profit=0,  # Lucro (inicialmente zero).
-        symbol=symbol,  # Símbolo negociado (par de moedas).
-        comment=comment,  # Comentário opcional.
-        external_id=None,  # ID externo (não utilizado no backtest).
+        ticket=__generate_unique_ticket(),  # Unique ticket generated with timestamp.
+        time=position_time,  # Position opening time.
+        time_msc=position_time,  # Time with millisecond precision.
+        time_update=position_time,  # Last update time (initially equal to the opening time).
+        time_update_msc=position_time,  # Time with millisecond precision.
+        type=position_type,  # Position type (buy/sell).
+        magic=operation_class.account_data.magic_number,  # Robo/expert identifier.
+        identifier=__generate_unique_ticket(),  # Unique position identifier.
+        reason=ENUM_POSITION_REASON.POSITION_REASON_EXPERT,  # Reason for opening (expert advisor).
+        volume=volume,  # Position volume in lots.
+        price_open=price,  # Opening price of the position.
+        price_current=price,  # Current price of the position (initially equal to the opening price).
+        sl=stop_price,  # Stop-loss price.
+        tp=profit_price,  # Take-profit price.
+        swap=0,  # Swap (not applicable in backtest).
+        profit=0,  # Profit (initially zero).
+        symbol=symbol,  # Symbol (currency pair).
+        comment=comment,  # Optional comment.
+        external_id=None,  # External ID (not used in backtest).
     )
 
-    # Verifica se já existe uma posição aberta para o símbolo.
+    # Verify if there is an open position for the symbol.
     if operation_class.account_data.positions:
         opened_position = operation_class.account_data.positions[0]
 
-        # A posição atualizada recebe o identificador e informações da posição aberta.
+        # The updated position receives the identifier and information from the opened position.
         position.time = opened_position.time
         position.time_msc = opened_position.time_msc
         position.identifier = opened_position.identifier
         position.volume = opened_position.volume
         position.type = opened_position.type
 
-        # Caso a posição aberta seja na direção oposta à ordem atual.
+        # Case the opened position is in the opposite direction to the current order.
         if opened_position.type != position_type:
-            # Fechamento total: os volumes são iguais.
+            # Total closing: the volumes are equal.
             if opened_position.volume == volume:
                 deal = __backtest_create_a_deal(
                     deal_time=position.time,
@@ -813,11 +812,11 @@ def __netting_create_position_and_deal(
                     comment=comment,
                 )
 
-                # Remove a posição fechada da lista de posições.
+                # Removes the closed position from the list of positions.
                 del operation_class.account_data.positions[0]
                 operation_class.account_data.history_deals.append(deal)
 
-            # Fechamento parcial: volume da posição aberta é maior.
+            # Partial closing: the open position volume is greater.
             elif opened_position.volume > volume:
                 deal = __backtest_create_a_deal(
                     deal_time=position.time,
@@ -833,17 +832,17 @@ def __netting_create_position_and_deal(
                     comment=comment,
                 )
 
-                # Atualiza o volume restante da posição após o fechamento parcial.
+                # Updates the remaining volume of the position after partial closing.
                 position.volume = round(position.volume - volume, 2)
                 operation_class.account_data.positions[0] = position
                 operation_class.account_data.history_deals.append(deal)
 
-            # Reversão de posição: volume da nova ordem é maior.
+            # Reversion of position: volume of the new order is greater.
             elif opened_position.volume < volume:
-                # Gera um novo identificador para a posição revertida.
+                # Generates a new identifier for the reversed position.
                 position.identifier = __generate_unique_ticket()
 
-                # Cria um deal de fechamento para a posição aberta.
+                # Creates a deal to close the open position.
                 deal_close = __backtest_create_a_deal(
                     deal_time=position.time,
                     position=opened_position,
@@ -858,20 +857,20 @@ def __netting_create_position_and_deal(
                     comment=comment,
                 )
 
-                # Calcula o novo volume e atualiza o tipo de posição.
+                # Calculates the new volume and updates the position type.
                 position.volume = round(abs(position.volume - volume), 2)
                 if position.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY:
                     position.type = ENUM_POSITION_TYPE.POSITION_TYPE_SELL
                 else:
                     position.type = ENUM_POSITION_TYPE.POSITION_TYPE_BUY
 
-                # Atualiza o preço de abertura com o preço atual.
+                # Updates the opening price with the current price.
                 position.price_open = position.price_current
 
                 operation_class.account_data.positions[0] = position
                 operation_class.account_data.history_deals.append(deal_close)
 
-        # Caso a nova ordem seja na mesma direção da posição aberta.
+        # Case the new order is in the same direction as the open position.
         else:
             deal = __backtest_create_a_deal(
                 deal_time=position.time,
@@ -887,23 +886,23 @@ def __netting_create_position_and_deal(
                 comment=comment,
             )
 
-            # Calcula o novo volume total e preço médio ponderado.
+            # Calculates the new total volume and weighted average price.
             total_volume = round(position.volume + volume, 2)
             mean_price = (
                 (opened_position.price_open * opened_position.volume)
                 + (position.price_open * volume)
             ) / total_volume
 
-            # Atualiza o volume, preço de abertura e preço atual.
+            # Updates the volume, opening price, and current price.
             position.volume = total_volume
             position.price_open = mean_price
             position.price_current = price
 
-            # Substitui a posição existente pela nova posição agregada.
+            # Replaces the existing position with the new aggregated position.
             operation_class.account_data.positions[0] = position
             operation_class.account_data.history_deals.append(deal)
     else:
-        # Cria uma nova posição se não houver posição aberta.
+        # Creates a new position if there is no open position.
         deal = __backtest_create_a_deal(
             operation_class=operation_class,
             position=position,
@@ -933,73 +932,73 @@ def __backtest_position_open(
     comment: str = "",
 ) -> bool:
     """
-    Abre uma posição em uma conta de backtest.
+    Opens a position in a backtest account.
 
-    Esta função simula a abertura de uma posição de mercado em um ambiente de backtest,
-    utilizando dados de candles e spread simulados para replicar condições realistas.
+    This function simulates the opening of a market position in a backtest environment,
+    using candlestick data and simulated spreads to replicate realistic conditions.
 
     Args:
-        operation_class (Operation): Classe de operação com dados da conta e contexto de backtest.
-        symbol (str): Par de moedas ou ativo a ser negociado (ex.: "EURUSD").
-        order_type (ENUM_ORDER_TYPE_MARKET): Tipo de ordem de mercado (ex.: BUY ou SELL).
-        volume (float): Volume da posição (tamanho do lote).
-        stop_price (float, optional): Preço de stop-loss. Padrão: 0 (sem stop-loss).
-        profit_price (float, optional): Preço de take-profit. Padrão: 0 (sem take-profit).
-        commission (float, optional): Comissão aplicada à operação. Padrão: 0.
-        fee (float, optional): Taxa adicional aplicada à operação. Padrão: 0.
-        comment (str, optional): Comentário opcional sobre a operação. Padrão: "".
+        operation_class (Operation): Operation class with account data and backtest context.
+        symbol (str): Currency pair or asset to trade (ex.: "EURUSD").
+        order_type (ENUM_ORDER_TYPE_MARKET): Market order type (ex.: BUY or SELL).
+        volume (float): Position volume (lot size).
+        stop_price (float, optional): Stop-loss price. Default: 0 (no stop-loss).
+        profit_price (float, optional): Take-profit price. Default: 0 (no take-profit).
+        commission (float, optional): Commission applied to the operation. Default: 0.
+        fee (float, optional): Additional fee applied to the operation. Default: 0.
+        comment (str, optional): Optional comment about the operation. Default: "".
 
     Returns:
-        bool: True, indicando que a ordem foi processada com sucesso na simulação.
+        bool: True, indicating that the order was processed successfully in the simulation.
 
     Raises:
-        ValueError: Caso os dados de volume ou margem não sejam válidos.
+        ValueError: If the volume or margin data is invalid.
     """
     __validate_operation_handler_attributes_for_symbol(
         operation_class=operation_class, symbol=symbol
     )
 
-    # **Validação do volume**
+    # Validates the position volume
     __validate_position_volume(operation_class, symbol, order_type, volume)
 
-    # Recupera o candle mais recente para simular o estado de mercado atual.
+    # Retrieves the most recent candle to simulate the current market state.
     last_candle = operation_class.backtest_symbols_data.loc[symbol, "last_candle"]
 
-    # Define o timestamp do candle como o tempo da posição.
+    # Define the timestamp of the candle as the time of the position.
     position_time = last_candle.name
 
-    # Recupera o spread simulado e o tamanho de tick para o par de moedas.
+    # Retrieves the simulated spread and tick size for the currency pair.
     simulated_spread: int = operation_class.account_data.simulated_spread
     trade_tick_size: float = operation_class.backtest_symbols_data.loc[symbol].tick_size
 
-    # Define o preço de entrada com base no tipo de ordem (compra ou venda).
+    # Define the entry price based on the order type (buy or sell).
     if order_type == ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY:
-        # Ordem de compra: utiliza o preço de fechamento do candle + spread (para simular o preço ASK).
+        # Buy order: uses the closing price of the candle + spread (to simulate the ASK price).
         price = last_candle.close + (trade_tick_size * simulated_spread)
     else:
-        # Ordem de venda: utiliza diretamente o preço de fechamento do candle (para simular o preço BID).
+        # Sell order: uses the closing price of the candle directly (to simulate the BID price).
         price = last_candle.close
 
-    # **Cálculo da margem necessária** (para abrir a posição)
+    # Calculates the margin required (to open the position)
     contract_size = operation_class.backtest_symbols_data.loc[symbol, "contract_size"]
     leverage = operation_class.account_data.leverage
     margin_required = (volume * contract_size * price) / leverage
 
-    # **Verificação de margem disponível**
+    # Verifies the available margin
     if operation_class.account_data.margin_free < margin_required:
         raise InsufficientMarginError(
-            f"Margem insuficiente para abrir posição de {volume} lote(s) em '{symbol}'. "
-            f"Margem necessária: {margin_required:.2f}, Margem livre: {operation_class.account_data.margin_free:.2f}"
+            f"Insufficient margin to open position of {volume} lot(s) in '{symbol}'. "
+            f"Required margin: {margin_required:.2f}, Free margin: {operation_class.account_data.margin_free:.2f}"
         )
 
-    # Verifica o tipo de conta e aplica a lógica correspondente:
-    # - Hedge: permite múltiplas posições na mesma direção ou direções opostas.
-    # - Netting: permite apenas uma posição agregada por símbolo.
+    # Verifies the account type and applies the corresponding logic:
+    # - Hedge: allows multiple positions in the same direction or opposite directions.
+    # - Netting: allows only one aggregated position per symbol.
     if (
         operation_class.account_data.margin_mode
         == ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
     ):
-        # Cria uma nova posição e deal para contas hedge.
+        # Creates a new position and deal for hedge accounts.
         __hedge_create_position_and_deal(
             operation_class=operation_class,
             symbol=symbol,
@@ -1014,7 +1013,7 @@ def __backtest_position_open(
             comment=comment,
         )
     else:
-        # Cria ou atualiza a posição agregada para contas netting.
+        # Creates or updates the aggregated position for netting accounts.
         __netting_create_position_and_deal(
             operation_class=operation_class,
             symbol=symbol,
@@ -1029,10 +1028,10 @@ def __backtest_position_open(
             comment=comment,
         )
 
-    # Atualiza os dados após execução
+    # Update data after execution
     __process_account_update_data(operation_class=operation_class)
 
-    # Retorna True para indicar que a operação foi bem-sucedida na simulação.
+    # Returns True to indicate that the operation was successfully executed in the simulation.
     return True
 
 # Open Pending Order ------------------------------------------------------------------------------
@@ -1049,21 +1048,21 @@ def __backtest_pending_order_open(
     comment: str = "",
 ):
     """
-    Abre uma ordem pendente em uma conta de backtest com validação de volume e preço.
+    Opens a pending order in a backtest account with volume and price validation.
     """
     __validate_operation_handler_attributes_for_symbol(
         operation_class=operation_class, symbol=symbol
     )
 
-    # Valida o volume da ordem
+    # Validate the order volume
     __validate_order_volume(
         operation_class=operation_class, symbol=symbol, order_type=order_type, volume=volume
     )
 
-    # Recupera o candle mais recente para simular o estado de mercado atual.
+    # Retrieve the most recent candle to simulate the current market state.
     last_candle = operation_class.backtest_symbols_data.loc[symbol].last_candle
 
-    # Define o timestamp do candle como o tempo da posição.
+    # Define the timestamp of the candle as the time of the position.
     position_time = last_candle.name
     order_time = position_time
     current_time_ms = get_timestamp_ms(order_time)
@@ -1203,62 +1202,62 @@ def __backtest_position_modify(
         comment=comment,
     )
 
-    # Atualiza os dados após execução
+    # Update data after execution
     __process_account_update_data(operation_class=operation_class)
 
 
 def __backtest_position_close(
-    operation_class: "Operation",  # Classe de operação com informações sobre a conta e métodos auxiliares.
-    position_ticket: int,  # Ticket da posição que será encerrada.
-    commission: float = 0,  # Comissão aplicada ao fechamento da posição.
-    fee: float = 0,  # Taxa associada ao fechamento da posição.
-    comment: str = "",  # Comentário opcional sobre o fechamento.
+    operation_class: "Operation",  # Operation class containing account data and auxiliary methods.
+    position_ticket: int,  # Ticket of the position to be closed.
+    commission: float = 0,  # Commission applied to the closing of the position.
+    fee: float = 0,  # Additional fee applied to the operation.
+    comment: str = "",  # Optional comment about the position closing.
 ):
     """
-    Fecha uma posição em modo de backtest.
+    Closes a position in backtest mode.
 
     Args:
-        operation_class (Operation): Classe de operação com dados da conta e métodos auxiliares.
-        position_ticket (int): ID da posição que será fechada.
-        commission (float, optional): Comissão cobrada na operação de fechamento. Padrão: 0.
-        fee (float, optional): Taxa adicional aplicada na operação. Padrão: 0.
-        comment (str, optional): Comentário sobre o fechamento da posição. Padrão: "".
+        operation_class (Operation): Operation class containing account data and auxiliary methods.
+        position_ticket (int): ID of the position to be closed.
+        commission (float, optional): Commission charged for the closing operation. Default: 0.
+        fee (float, optional): Additional fee applied to the operation. Default: 0.
+        comment (str, optional): Optional comment about the position closing.
 
     Raises:
-        CouldNotSelectPosition: Exceção levantada caso a posição com o `ticket` especificado não seja encontrada.
+        CouldNotSelectPosition: Exception raised if the position with the specified `ticket` is not found.
     """
 
-    # **1. Seleção da Posição**
+    # **1. Position Selection**
     position_selected: List[MqlPositionInfo] = [
         position
         for position in operation_class.account_data.positions
         if position.ticket == position_ticket
     ]
 
-    # **2. Verificação da Existência da Posição**
+    # **2. Verification of the Position's Existence**
     if len(position_selected) != 1:
         raise CouldNotSelectPosition("[ERROR]: Could not select the position.")
 
-    # **3. Recupera a posição e atributos necessários**
+    # **3. Retrieve the Position and Required Attributes**
     position_selected = position_selected[0]
     symbol = position_selected.symbol
     last_candle = operation_class.backtest_symbols_data.loc[
         symbol
-    ].last_candle  # Último candle disponível
-    deal_time = last_candle.name  # Define o timestamp do candle como o tempo do deal
+    ].last_candle  # Last available candle
+    deal_time = last_candle.name  # Define the timestamp of the candle as the deal time
 
-    # **4. Determina preço de execução e tipo de ordem inversa**
+    # **4. Determine execution price and inverse order type**
     if position_selected.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY:
-        price = last_candle.close  # Preço de fechamento para ordens de venda
-        order_type = ENUM_ORDER_TYPE.ORDER_TYPE_SELL  # Ordem de venda
+        price = last_candle.close  # Closing price for sell orders
+        order_type = ENUM_ORDER_TYPE.ORDER_TYPE_SELL  # Sell order
     else:
         price = last_candle.close + (
             operation_class.backtest_symbols_data.loc[symbol].tick_size
             * operation_class.account_data.simulated_spread
         )
-        order_type = ENUM_ORDER_TYPE.ORDER_TYPE_BUY  # Ordem de compra
+        order_type = ENUM_ORDER_TYPE.ORDER_TYPE_BUY  # Buy order
 
-    # **5. Criação e Registro do Deal**
+    # **5. Create and Register the Deal**
     deal = __backtest_create_a_deal(
         deal_time=deal_time,
         position=position_selected,
@@ -1274,87 +1273,87 @@ def __backtest_position_close(
     )
     operation_class.account_data.history_deals.append(deal)
 
-    # **6. Atualização de Saldo e Equity com base no profit do deal**
+    # **6. Update balance and equity based on deal profit**
     __backtest_account_update_equity(operation_class=operation_class)
 
-    # **7. Remoção da Posição da Lista**
+    # **7. Remove the Position from the List**
     operation_class.account_data.positions.remove(position_selected)
 
-    # **8. Log do Fechamento**
+    # **8. Log the Closure**
     logging.info(
-        f"[CLOSE POSITION] Posição {position_selected.ticket} encerrada em {symbol} | Lucro: {deal.profit:.2f} | "
-        f"Saldo Atual: {operation_class.account_data.balance:.2f} | Equity: {operation_class.account_data.equity:.2f}"
+        f"[CLOSE POSITION] Position {position_selected.ticket} closed in {symbol} | Profit: {deal.profit:.2f} | "
+        f"Current Balance: {operation_class.account_data.balance:.2f} | Equity: {operation_class.account_data.equity:.2f}"
     )
 
-    # **9. Atualiza os dados após execução**
+    # **9. Update data after execution**
     __process_account_update_data(operation_class=operation_class)
 
 
 # Pending Orders Management -----------------------------------------------------------------------
 def __backtest_pending_order_check_triggered(operation_class: "Operation") -> None:
     """
-    Verifica se alguma ordem pendente foi ativada com base no preço `high` e `low` do último candle.
-    Para ordens `STOP_LIMIT`, verifica o acionamento do preço inicial e, se necessário,
-    cria uma ordem `LIMIT`. Para ordens `LIMIT` e `STOP`, abre posições diretamente.
+    Checks if any pending order was triggered based on the `high` and `low` price of the last candle.
+    For `STOP_LIMIT` orders, checks the activation of the initial price and, if necessary,
+    creates a `LIMIT` order. For `LIMIT` and `STOP` orders, opens positions directly.
 
     Args:
-        operation_class (Operation): Classe de operação com informações da conta e ordens pendentes.
+        operation_class (Operation): Operation class with account and pending orders information.
 
     Returns:
-        None: A função não retorna nada, mas abre posições ou cria ordens `LIMIT` conforme necessário.
+        None: The function does not return anything, but opens positions or creates `LIMIT` orders as needed.
     """
-    # **Iteração sobre todas as ordens pendentes**
+    # **Iteration over all pending orders**
     spread_points = operation_class.account_data.simulated_spread
-    for order in operation_class.account_data.orders[:]:  # Cópia da lista para evitar erros ao modificar
+    for order in operation_class.account_data.orders[:]:  # Copy of the list to avoid errors when modifying
         symbol = order.symbol
         __validate_operation_handler_attributes_for_symbol(
             operation_class=operation_class, symbol=symbol
         )
 
         last_candle = operation_class.backtest_symbols_data.loc[symbol].last_candle
-        order_triggered = False  # Variável de controle para verificar se a ordem foi ativada
+        order_triggered = False  # Variable to control if the order was triggered
         spread = spread_points * operation_class.backtest_symbols_data.loc[symbol].tick_size
 
-        # **Verificação de preços por tipo de ordem**
+        # **Verification of prices by order type**
         if order.type == ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_BUY_LIMIT:
-            # `BUY_LIMIT`: Preço do mercado (`low`) deve ser menor ou igual ao preço da ordem
+            # `BUY_LIMIT`: Market price (`low`) should be less than or equal to the order price
             if last_candle.low + spread <= order.price_open:
                 logging.info(
-                    f"[INFO] Ordem `BUY_LIMIT` {order.ticket} atingida em {symbol} a {order.price_open}"
+                    f"[INFO] Order `BUY_LIMIT` {order.ticket} reached in {symbol} at {order.price_open}"
                 )
                 order_triggered = True
 
         elif order.type == ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_SELL_LIMIT:
-            # `SELL_LIMIT`: Preço do mercado (`high`) deve ser maior ou igual ao preço da ordem
+            # `SELL_LIMIT`: Market price (`high`) should be greater than or equal to the order price
             if last_candle.high >= order.price_open:
                 logging.info(
-                    f"[INFO] Ordem `SELL_LIMIT` {order.ticket} atingida em {symbol} a {order.price_open}"
+                    f"[INFO] Order `SELL_LIMIT` {order.ticket} reached in {symbol} at {order.price_open}"
                 )
                 order_triggered = True
 
         elif order.type == ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_BUY_STOP:
-            # `BUY_STOP`: Preço do mercado (`high`) deve ser maior ou igual ao preço da ordem
+            # `BUY_STOP`: Market price (`high`) should be greater than or equal to the order price
             if last_candle.high + spread >= order.price_open:
                 logging.info(
-                    f"[INFO] Ordem `BUY_STOP` {order.ticket} atingida em {symbol} a {order.price_open}"
+                    f"[INFO] Order `BUY_STOP` {order.ticket} reached in {symbol} at {order.price_open}"
                 )
                 order_triggered = True
 
         elif order.type == ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_SELL_STOP:
-            # `SELL_STOP`: Preço do mercado (`low`) deve ser menor ou igual ao preço da ordem
+            # `SELL_STOP`: Market price (`low`) should be less than or equal to the order price
             if last_candle.low <= order.price_open:
                 logging.info(
-                    f"[INFO] Ordem `SELL_STOP` {order.ticket} atingida em {symbol} a {order.price_open}"
+                    f"[INFO] Order `SELL_STOP` {order.ticket} reached in {symbol} at {order.price_open}"
                 )
                 order_triggered = True
 
         elif order.type == ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_BUY_STOP_LIMIT:
-            # `BUY_STOP_LIMIT`: Preço do mercado (`high`) deve ser maior ou igual ao preço inicial
+            # `BUY_STOP_LIMIT`: Market price (`high`) should be greater than or equal to the initial price
             if last_candle.high + spread >= order.price_open:
                 logging.info(
-                    f"[INFO] Ordem `BUY_STOP_LIMIT` {order.ticket} atingida em {symbol}."
+                    f"[INFO] Order `BUY_STOP_LIMIT` {order.ticket} reached in {symbol}."
                 )
-                # Cria uma ordem `LIMIT` pendente
+                # Create a pending `LIMIT` order
                 __backtest_pending_order_open(
                     operation_class=operation_class,
                     expiration=order.time_expiration,
@@ -1370,12 +1369,12 @@ def __backtest_pending_order_check_triggered(operation_class: "Operation") -> No
                 order_triggered = True
 
         elif order.type == ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_SELL_STOP_LIMIT:
-            # `SELL_STOP_LIMIT`: Preço do mercado (`low`) deve ser menor ou igual ao preço inicial
+            # `SELL_STOP_LIMIT`: Market price (`low`) should be less than or equal to the initial price
             if last_candle.low <= order.price_open:
                 logging.info(
-                    f"[INFO] Ordem `SELL_STOP_LIMIT` {order.ticket} atingida em {symbol}."
+                    f"[INFO] Order `SELL_STOP_LIMIT` {order.ticket} reached in {symbol}."
                 )
-                # Cria uma ordem `LIMIT` pendente
+                # Create a pending `LIMIT` order
                 __backtest_pending_order_open(
                     operation_class=operation_class,
                     expiration=order.time_expiration,
@@ -1391,16 +1390,16 @@ def __backtest_pending_order_check_triggered(operation_class: "Operation") -> No
                 order_triggered = True
 
         else:
-            logging.warning(f"[WARNING] Tipo de ordem {order.type} não reconhecido.")
-            continue  # Ignora tipos não reconhecidos
+            logging.warning(f"[WARNING] Order type {order.type} not recognized.")
+            continue  # Ignore unknown order types
             
-        # **Abertura da posição apenas se a ordem foi ativada**
+        # **Open position only if the order was triggered**
         if order_triggered:
             original_close = (
                 last_candle.close
-            )  # Salva o valor original do close do candle
+            )  # Save the original close value of the candle
 
-            # Ajusta temporariamente o close para o preço da ordem
+            # Temporarily adjust the close to the order price
             try:
                 operation_class.backtest_symbols_data.at[
                     symbol, "last_candle"
@@ -1410,9 +1409,9 @@ def __backtest_pending_order_check_triggered(operation_class: "Operation") -> No
                 ]["close"] = order.price_open
 
                 if order.type not in (ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_BUY_STOP_LIMIT, ENUM_ORDER_TYPE.ORDER_TYPE_SELL_STOP_LIMIT):
-                    # **Abertura da posição com o preço da ordem**
+                    # **Open position with order price**
                     try:
-                        # **Abertura da posição com o preço da ordem**
+                        # **Open position with order price**
                         __backtest_position_open(
                             operation_class=operation_class,
                             symbol=symbol,
@@ -1425,41 +1424,40 @@ def __backtest_pending_order_check_triggered(operation_class: "Operation") -> No
                             comment=f"Activated pending order {order.ticket}",
                         )
                     except Exception as e:
-                        # Loga o erro e continua a execução
+                        # Log the error and continue execution
                         logging.error(
-                            f"Erro ao abrir a posição para a ordem {order.ticket} no símbolo {symbol} (A ordem não será acionada, mas será excluída): {str(e)}"
+                            f"Error opening position for order {order.ticket} in symbol {symbol} (The order will not be activated, but will be removed): {str(e)}"
                         )
 
-                # Remove a ordem após ser ativada
+                # Remove the order after activation
                 operation_class.account_data.orders.remove(order)
-                logging.info(f"[INFO] Ordem {order.ticket} removida após ativação.")
+                logging.info(f"[INFO] Order {order.ticket} removed after activation.")
 
             finally:
-                # **Restaura o valor original do close do candle**   
+                # **Restores the original close value of the candle**   
                 operation_class.backtest_symbols_data.at[
                     symbol, "last_candle"
                 ]["close"] = original_close
-
-            
+         
 
 def __backtest_pending_order_check_expiration(operation_class: "Operation") -> None:
     """
-    Verifica se alguma ordem pendente expirou com base na data/hora atual e remove ordens expiradas.
+    Verify if any pending order expired based on the current date/time and remove expired orders.
 
     Args:
-        operation_class (Operation): Classe de operação com informações da conta e ordens pendentes.
+        operation_class (Operation): Operation class containing account and pending orders data.
 
     Returns:
-        None: A função não retorna nada, mas remove ordens expiradas do atributo `orders` do `account_data`.
+        None: The function does not return anything, but removes expired orders from the `orders` attribute of `account_data`.
     """
-    # Valida atributos para cada símbolo presente nas ordens pendentes
+    # Validate attributes for each symbol present in pending orders
     symbols = set([order.symbol for order in operation_class.account_data.orders])
     for symbol in symbols:
         __validate_operation_handler_attributes_for_symbol(
             operation_class=operation_class, symbol=symbol
         )
 
-    # Filtra as ordens expiradas
+    # Filter expired orders
     expired_orders = []
     for order in operation_class.account_data.orders:
         last_candle_time = operation_class.backtest_symbols_data.loc[
@@ -1467,7 +1465,7 @@ def __backtest_pending_order_check_expiration(operation_class: "Operation") -> N
         ].last_candle.name
 
         if order.type_time == ENUM_ORDER_TYPE_TIME.ORDER_TIME_SPECIFIED:
-            # `ORDER_TIME_SPECIFIED`: Ordem expira no horário exato especificado
+            # `ORDER_TIME_SPECIFIED`: Order expires at the exact specified time
             if (
                 order.time_expiration is not None
                 and order.time_expiration <= last_candle_time
@@ -1475,7 +1473,7 @@ def __backtest_pending_order_check_expiration(operation_class: "Operation") -> N
                 expired_orders.append(order)
 
         elif order.type_time == ENUM_ORDER_TYPE_TIME.ORDER_TIME_SPECIFIED_DAY:
-            # `ORDER_TIME_SPECIFIED_DAY`: Expira às 23:59:59 do dia especificado
+            # `ORDER_TIME_SPECIFIED_DAY`: Expires at 23:59:59 of the specified day
             if order.time_expiration is not None:
                 expiration_day_end = datetime.combine(
                     order.time_expiration.date(), time(23, 59, 59), tzinfo=timezone.utc
@@ -1483,29 +1481,29 @@ def __backtest_pending_order_check_expiration(operation_class: "Operation") -> N
                 if expiration_day_end <= last_candle_time:
                     expired_orders.append(order)
 
-    # Remove as ordens expiradas
+    # Remove the expired orders
     for expired_order in expired_orders:
         operation_class.account_data.orders.remove(expired_order)
         logging.info(
-            f"Ordem {expired_order.ticket} para {expired_order.symbol} foi removida devido à expiração."
+            f"Order {expired_order.ticket} for {expired_order.symbol} was removed due to expiration."
         )
 
 
 # Positions Management ----------------------------------------------------------------------------
 def __backtest_position_check_stop_loss_reached(operation_class: "Operation") -> None:
     """
-    Verifica se o stop loss foi atingido para as posições abertas com base no `high` e `low` do último candle.
-    Caso o stop loss seja atingido, a posição é fechada automaticamente no preço do stop loss.
+    Verify if the stop loss was reached for open positions based on the `high` and `low` of the last candle.
+    If the stop loss is reached, the position is automatically closed at the stop loss price.
 
     Args:
-        operation_class (Operation): Classe de operação contendo dados da conta e posições abertas.
+        operation_class (Operation): Operation class containing account and position data.
 
     Returns:
-        None: A função não retorna nada, mas fecha posições que atingiram o stop loss.
+        None: The function does not return anything, but closes positions that reached the stop loss.
     """
     for position in operation_class.account_data.positions[
         :
-    ]:  # Cópia da lista para evitar erros
+    ]:  # Copy of the list to avoid errors
         symbol = position.symbol
         __validate_operation_handler_attributes_for_symbol(
             operation_class=operation_class, symbol=symbol
@@ -1513,9 +1511,9 @@ def __backtest_position_check_stop_loss_reached(operation_class: "Operation") ->
 
         last_candle = operation_class.backtest_symbols_data.loc[
             symbol
-        ].last_candle  # Último candle disponível
+        ].last_candle  # Last available candle
 
-        if position.sl > 0:  # Verifica se há um stop loss configurado
+        if position.sl > 0:  # Verify if there is a stop loss configured
             stop_loss_reached = (
                 position.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
                 and last_candle.low <= position.sl
@@ -1526,10 +1524,10 @@ def __backtest_position_check_stop_loss_reached(operation_class: "Operation") ->
 
             if stop_loss_reached:
                 logging.warning(
-                    f"[STOP LOSS] Posição {position.ticket} em {symbol} atingiu o stop loss a {position.sl}"
+                    f"[STOP LOSS] Position {position.ticket} in {symbol} reached stop loss at {position.sl}"
                 )
 
-                # **Armazenamento do `close` original do candle**
+                # Store the original `close` of the candle
                 original_close = last_candle.close
 
                 operation_last_candle = operation_class.backtest_symbols_data.loc[
@@ -1537,11 +1535,11 @@ def __backtest_position_check_stop_loss_reached(operation_class: "Operation") ->
                 ].last_candle
 
                 try:
-                    # Ajusta temporariamente o `close` para o preço de stop loss
+                    # Adjust temporarily the `close` to the stop loss price
                     operation_last_candle = last_candle.copy()
                     operation_last_candle["close"] = position.sl
 
-                    # **Fechamento da posição**
+                    # Close the position
                     __backtest_position_close(
                         operation_class=operation_class,
                         position_ticket=position.ticket,
@@ -1549,24 +1547,24 @@ def __backtest_position_check_stop_loss_reached(operation_class: "Operation") ->
                     )
 
                 finally:
-                    # **Restauração do valor original do `close`**
+                    # Restore the original `close` of the candle
                     operation_last_candle.close = original_close
 
 
 def __backtest_position_check_take_profit_reached(operation_class: "Operation") -> None:
     """
-    Verifica se o take profit foi atingido para as posições abertas com base no `high` e `low` do último candle.
-    Caso o take profit seja atingido, a posição é fechada automaticamente no preço do take profit.
+    Verify if the take profit was reached for open positions based on the `high` and `low` of the last candle.
+    If the take profit is reached, the position is automatically closed at the take profit price.
 
     Args:
-        operation_class (Operation): Classe de operação contendo dados da conta e posições abertas.
+        operation_class (Operation): Operation class containing account and position data.
 
     Returns:
-        None: A função não retorna nada, mas fecha posições que atingiram o take profit.
+        None: The function does not return anything, but closes positions that reached the take profit.
     """
     for position in operation_class.account_data.positions[
         :
-    ]:  # Cópia da lista para evitar erros
+    ]:  # Copy of the list to avoid errors
         symbol = position.symbol
         __validate_operation_handler_attributes_for_symbol(
             operation_class=operation_class, symbol=symbol
@@ -1574,9 +1572,9 @@ def __backtest_position_check_take_profit_reached(operation_class: "Operation") 
 
         last_candle = operation_class.backtest_symbols_data.loc[
             symbol
-        ].last_candle  # Último candle disponível
+        ].last_candle  # Last available candle
 
-        if position.tp > 0:  # Verifica se há um take profit configurado
+        if position.tp > 0:  # Verify if there is a take profit configured
             take_profit_reached = (
                 position.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
                 and last_candle.high >= position.tp
@@ -1587,21 +1585,21 @@ def __backtest_position_check_take_profit_reached(operation_class: "Operation") 
 
             if take_profit_reached:
                 logging.info(
-                    f"[TAKE PROFIT] Posição {position.ticket} em {symbol} atingiu o take profit a {position.tp}"
+                    f"[TAKE PROFIT] Position {position.ticket} in {symbol} reached take profit at {position.tp}"
                 )
 
-                # **Armazenamento do `close` original do candle**
+                # Store the original `close` of the candle
                 original_close = last_candle.close
 
                 operation_last_candle = operation_class.backtest_symbols_data.loc[
                     symbol
                 ].last_candle
                 try:
-                    # Ajusta temporariamente o `close` para o preço do take profit
+                    # Adjust temporarily the `close` to the take profit price
                     operation_last_candle = last_candle.copy()
                     operation_last_candle.close = position.tp
 
-                    # **Fechamento da posição**
+                    # Close the position
                     __backtest_position_close(
                         operation_class=operation_class,
                         position_ticket=position.ticket,
@@ -1609,7 +1607,7 @@ def __backtest_position_check_take_profit_reached(operation_class: "Operation") 
                     )
 
                 finally:
-                    # **Restauração do valor original do `close`**
+                    # Restore the original `close` of the candle
                     operation_class.backtest_symbols_data.loc[
                         symbol
                     ].last_candle.close = original_close
@@ -1617,114 +1615,114 @@ def __backtest_position_check_take_profit_reached(operation_class: "Operation") 
 
 def __backtest_position_update_price_and_profit(operation_class: "Operation") -> None:
     """
-    Atualiza o preço atual e o lucro/prejuízo das posições abertas com base no último preço disponível.
+    Updates the current price and profit/loss of open positions based on the last available price.
 
     Args:
-        operation_class (Operation): Classe de operação contendo os dados da conta e posições abertas.
+        operation_class (Operation): Operation class containing account and position data.
 
     Returns:
-        None: A função não retorna nada, mas atualiza o preço atual e o lucro/prejuízo das posições abertas.
+        None: The function does not return anything, but updates the price and profit/loss of open positions.
     """
-    # **Zera o lucro total da conta antes de calcular o lucro das posições**
+    # Reset the total profit of the account before calculating the profit of the positions
     operation_class.account_data.profit = 0
 
-    # **Iteração sobre todas as posições abertas**
+    # Iteration over all open positions
     for position in operation_class.account_data.positions:
         symbol = position.symbol
 
-        # **Validação de atributos essenciais para o símbolo**
+        # Validate essential attributes for the symbol
         __validate_operation_handler_attributes_for_symbol(
             operation_class=operation_class, symbol=symbol
         )
 
-        # **Obtém o último candle para o símbolo**
+        # Get the last candle for the symbol
         last_candle = operation_class.backtest_symbols_data.loc[symbol].last_candle
 
-        # Utiliza o preço de fechamento (`close`) do candle como preço atual
+        # Uses the closing price (`close`) of the candle as the current price
         if position.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY:
-            last_price = last_candle.close  # Preço de fechamento para ordens de venda
+            last_price = last_candle.close  # Closing price for sell orders
         else:
             last_price = last_candle.close + (
                 operation_class.backtest_symbols_data.loc[symbol].tick_size
                 * operation_class.account_data.simulated_spread
             )
 
-        # **Atualiza o preço atual da posição**
+        # Update current price of the position
         position.price_current = round(last_price, 5)
 
-        # **Calcula o lucro/prejuízo com base no preço atual**
+        # Calculate profit/loss based on the current price
         profit = __backtest_get_profit(
             operation_class=operation_class,
             symbol=symbol,
-            price_open=position.price_open,  # Preço de abertura da posição
-            price_close=position.price_current,  # Preço atual
-            price_volume=position.volume,  # Volume da posição
-            position_type=position.type,  # Tipo da posição (compra/venda)
+            price_open=position.price_open,  # Opening price of the position
+            price_close=position.price_current,  # Current price
+            price_volume=position.volume,  # Position volume
+            position_type=position.type,  # Position type (buy/sell)
         )
 
-        # **Atualiza o lucro/prejuízo na posição**
+        # Update profit/loss in the position
         position.profit = profit
 
-        # **Acumula o lucro/prejuízo total da conta**
+        # Accumulate total profit/loss of the account
         operation_class.account_data.profit = round(
             operation_class.account_data.profit + profit + position.swap, 2
         )
 
-        # **Log da atualização**
+        # Log update
         logging.info(
-            f"[ATUALIZAÇÃO] Posição {position.ticket} ({'BUY' if position.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY else 'SELL'}) "
-            f"em {symbol}: Preço Atual: {last_price:.5f} | Lucro/Prejuízo: {profit:.2f} {operation_class.account_data.currency}"
+            f"[UPDATE] Position {position.ticket} ({'BUY' if position.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY else 'SELL'}) "
+            f"in {symbol}: Current Price: {last_price:.5f} | Profit/Loss: {profit:.2f} {operation_class.account_data.currency}"
         )
 
 
 # Account Management ------------------------------------------------------------------------------
 def __backtest_account_update_equity(operation_class: "Operation") -> None:
     """
-    Atualiza o equity da conta com base no saldo atual e o lucro/prejuízo das posições abertas.
+    Updates the equity of the account based on the current balance and the profit/loss of open positions.
 
     Args:
-        operation_class (Operation): Classe de operação contendo os dados da conta e posições abertas.
+        operation_class (Operation): Operation class containing account and position data.
 
     Returns:
-        None: A função não retorna nada, mas atualiza o atributo `equity` da conta.
+        None: The function does not return anything, but updates the `equity` attribute of the account.
     """
     account_data = operation_class.account_data
 
-    # **Atualização do Equity**
+    # Update equity
     account_data.equity = round(account_data.balance + account_data.profit, 2)
 
-    # **Log da atualização de Equity**
+    # Log equity update
     logging.info(
-        f"[ATUALIZAÇÃO DE EQUITY] Saldo: {account_data.balance:.2f}, "
-        f"Lucro/Prejuízo Aberto: {account_data.profit:.2f}, "
+        f"[EQUITY UPDATE] Balance: {account_data.balance:.2f}, "
+        f"Profit/Loss Open: {account_data.profit:.2f}, "
         f"Equity: {account_data.equity:.2f}"
     )
 
 
 def __backtest_account_update_margin(operation_class: "Operation") -> None:
     """
-    Atualiza os valores de margem da conta com base no modo de cálculo de margem.
+    Updates the margin values of the account based on the margin calculation mode.
 
-    Esta função calcula apenas os valores dinâmicos que mudam com as posições abertas:
-    - `margin`: Margem total utilizada pelas posições abertas.
-    - `margin_free`: Margem livre da conta (`equity - margin`).
-    - `margin_level`: Nível de margem (percentual entre `equity` e `margin`).
+    This function calculates only dynamic values that change with open positions:
+    - `margin`: Total margin used by open positions.
+    - `margin_free`: Free margin of the account (`equity - margin`).
+    - `margin_level`: Margin level (percentage between `equity` and `margin`).
 
     Args:
-        operation_class (Operation): Classe de operação contendo os dados da conta e posições abertas.
+        operation_class (Operation): Operation class containing account and position data.
 
     Returns:
-        None: A função atualiza os atributos de margem (`margin`, `margin_free` e `margin_level`) no `account_data`.
+        None: The function does not return anything, but updates the margin attributes in the `account_data`.
     """
     account_data = operation_class.account_data
 
-    # **Atualiza o Equity antes de calcular a margem**
+    # Update equity before calculating margin
     __backtest_account_update_equity(operation_class)
 
-    # **Inicializa a margem total utilizada**
+    # Initialize total margin used
     total_margin_used = 0.0
 
-    # **Iteração sobre todas as posições abertas para calcular a margem usada**
+    # Iteration over all open positions to calculate used margin
     for position in account_data.positions:
         symbol = position.symbol
         trade_calc_mode = operation_class.backtest_symbols_data.loc[
@@ -1732,11 +1730,11 @@ def __backtest_account_update_margin(operation_class: "Operation") -> None:
         ].trade_calc_mode
         position_open_price = position.price_open
 
-        # **Obtém informações do símbolo**
+        # Get symbol information
         contract_size = operation_class.backtest_symbols_data.loc[symbol].contract_size
         leverage = account_data.leverage
 
-        # **Cálculo de Margem com base no modo de cálculo do símbolo**
+        # Margin calculation based on symbol calculation mode
         if trade_calc_mode in [
             ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_FOREX,
             ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_CFDLEVERAGE,
@@ -1762,22 +1760,22 @@ def __backtest_account_update_margin(operation_class: "Operation") -> None:
             margin = position.volume * contract_size * position_open_price
 
         elif trade_calc_mode == ENUM_SYMBOL_CALC_MODE.SYMBOL_CALC_MODE_SERV_COLLATERAL:
-            margin = 0  # Ativos não negociáveis não consomem margem
+            margin = 0  # Non-tradable assets do not consume margin
 
         else:
-            logging.warning(f"Modo de cálculo desconhecido para o símbolo: {symbol}")
+            logging.warning(f"Unknown calculation mode for symbol: {symbol}")
             margin = 0
 
-        # **Soma a margem calculada ao total de margem usada**
+        # Add the calculated margin to the total used margin
         total_margin_used += margin
 
-    # **Atualização dos atributos de margem na conta**
-    account_data.margin = round(total_margin_used, 2)  # Margem total usada
+    # Update margin attributes in the account
+    account_data.margin = round(total_margin_used, 2)  # Total used margin
     account_data.margin_free = round(
         account_data.equity - total_margin_used, 2
-    )  # Margem livre
+    )  # Free margin
 
-    # **Nível de Margem**
+    # Margin level
     if total_margin_used > 0:
         account_data.margin_level = round(
             (account_data.equity / total_margin_used) * 100, 3
@@ -1785,12 +1783,12 @@ def __backtest_account_update_margin(operation_class: "Operation") -> None:
     else:
         account_data.margin_level = float(
             "inf"
-        )  # Quando não há margem usada, o nível de margem é infinito
+        )  # When there's no margin used, the margin level is infinite
 
-    # **Logs de informações de margem**
+    # Margin information logs
     logging.info(
-        f"[MARGEM ATUALIZADA] Margem Usada: {account_data.margin:.2f}, Margem Livre: {account_data.margin_free:.2f}, "
-        f"Nível de Margem: {account_data.margin_level:.2f}%"
+        f"[UPDATED MARGIN] Used Margin: {account_data.margin:.2f}, Free Margin: {account_data.margin_free:.2f}, "
+        f"Margin Level: {account_data.margin_level:.2f}%"
     )
 
 
@@ -1803,52 +1801,52 @@ def __backtest_account_check_margin_call(operation_class: "Operation") -> None:
         operation_class (Operation): Classe de operação contendo os dados da conta.
 
     Returns:
-        None: A função não retorna nada, mas pode emitir logs de alerta caso o nível de margem esteja crítico.
+        None: The function does not return anything, but may emit warning logs if the margin level is critical.
     """
     account_data = operation_class.account_data
 
-    # Verifica o modo de cálculo do nível de margem
+    # Verify margin calculation mode
     if (
         account_data.margin_so_mode
         == ENUM_ACCOUNT_STOPOUT_MODE.ACCOUNT_STOPOUT_MODE_PERCENT
     ):
-        # Nível de margem baseado em porcentagem
+        # Margin level based on percentage
         if account_data.margin_level <= account_data.margin_so_call:
             logging.warning(
-                f"[MARGIN CALL] Nível de margem abaixo do limite ({account_data.margin_level:.2f}%). "
-                f"Margem mínima permitida: {account_data.margin_so_call}%."
+                f"[MARGIN CALL] Margin level below the limit ({account_data.margin_level:.2f}%). "
+                f"Minimum margin allowed: {account_data.margin_so_call}%."
             )
 
     elif (
         account_data.margin_so_mode
         == ENUM_ACCOUNT_STOPOUT_MODE.ACCOUNT_STOPOUT_MODE_MONEY
     ):
-        # Nível de margem baseado em valor monetário
+        # Margin level based on monetary value
         if account_data.margin_free <= account_data.margin_so_call:
             logging.warning(
-                f"[MARGIN CALL] Margem livre abaixo do limite ({account_data.margin_free:.2f} {account_data.currency}). "
-                f"Margem mínima permitida: {account_data.margin_so_call} {account_data.currency}."
+                f"[MARGIN CALL] Free margin below the limit ({account_data.margin_free:.2f} {account_data.currency}). "
+                f"Minimum margin allowed: {account_data.margin_so_call} {account_data.currency}."
             )
 
 
 def __backtest_account_process_stop_out(operation_class: "Operation") -> None:
     """
-    Processa o evento de stop out, encerrando posições abertas caso o nível de margem fique abaixo do limite
-    estabelecido pela corretora. As posições são encerradas na ordem definida pelo parâmetro `fifo_close`:
-    - Se `True`: posições fechadas em ordem FIFO.
-    - Se `False`: posições fechadas pela maior perda não realizada.
+    Process the stop out event, closing open positions if the margin level falls below the limit
+    established by the broker. Positions are closed in the order defined by the `fifo_close` parameter:
+    - If `True`: positions are closed in FIFO order.
+    - If `False`: positions are closed by the largest loss not realized.
 
-    Ao final, a margem da conta é atualizada.
+    At the end, the account margin is updated.
 
     Args:
-        operation_class (Operation): Classe de operação com informações da conta e posições abertas.
+        operation_class (Operation): Operation class containing account and position data.
 
     Returns:
-        None: A função não retorna nada, mas fecha posições e atualiza os dados da conta.
+        None: The function does not return anything, but closes positions and updates account data.
     """
     account_data = operation_class.account_data
 
-    # Verifica se o nível de margem está abaixo do stop out level.
+    # Verify if the margin level is below the stop out level.
     if account_data.margin_level > 0:
         if (
             account_data.margin_so_mode
@@ -1858,28 +1856,28 @@ def __backtest_account_process_stop_out(operation_class: "Operation") -> None:
         else:
             stop_out_triggered = account_data.equity <= account_data.margin_so_so
     else:
-        # Se a margem nível é 0 ou negativa, desencadeia stop out diretamente
+        # If the margin level is 0 or negative, trigger stop out directly
         stop_out_triggered = True
 
-    # **Se o stop out não foi atingido, retorna sem ações**
+    # **If stop out was not triggered, return without actions**
     if not stop_out_triggered:
         return
 
     logging.warning(
-        "[STOP OUT] Nível de margem atingido! Iniciando fechamento das posições..."
+        "[STOP OUT] Margin level reached! Starting position closing..."
     )
 
-    # **Ordenação das posições**
+    # **Position sorting**
     if account_data.fifo_close:
-        # Ordenação FIFO: Fecha pela ordem de abertura (mais antiga primeiro)
+        # FIFO sorting: Closes positions in the order of opening (oldest first)
         positions_to_close = sorted(
             account_data.positions, key=lambda pos: pos.time_msc
         )
     else:
-        # Ordenação pela maior perda não realizada: Fecha primeiro as posições com maior prejuízo
+        # Close positions with the highest loss first
         positions_to_close = sorted(account_data.positions, key=lambda pos: pos.profit)
 
-    # **Fechamento das posições até liberar margem suficiente**
+    # **Close positions until margin is restored**
     for position in positions_to_close:
         __backtest_position_close(
             operation_class=operation_class,
@@ -1887,55 +1885,59 @@ def __backtest_account_process_stop_out(operation_class: "Operation") -> None:
             comment="Stop out triggered",
         )
 
-        # Atualiza os dados de margem após cada fechamento
+        # Update margin data after each closing
         __backtest_position_update_price_and_profit(operation_class=operation_class)
         __backtest_account_update_margin(operation_class=operation_class)
 
-        # Verifica se o nível de margem voltou a estar acima do limite após fechar posições
+        # Verify if the margin level has returned to above the limit after closing positions
         if account_data.margin_level > account_data.margin_so_so:
             logging.info(
-                "[STOP OUT] Nível de margem restaurado após fechamento das posições."
+                "[STOP OUT] Margin level restored after closing positions."
             )
             break
 
-    # **Log final após processo de stop out**
+    # **Final log after stop out process**
     logging.info(
-        f"[STOP OUT FINALIZADO] Saldo: {account_data.balance:.2f} | Equity: {account_data.equity:.2f} | "
-        f"Nível de Margem: {account_data.margin_level:.2f}%"
+        f"[STOP OUT FINISHED] Balance: {account_data.balance:.2f} | Equity: {account_data.equity:.2f} | "
+        f"Margin Level: {account_data.margin_level:.2f}%"
     )
 
 
 # Swap Management ---------------------------------------------------------------------------------
 def __backtest_position_apply_swap_to_positions(operation_class: "Operation") -> None:
     """
-    Aplica swaps às posições abertas com base no `last_candle` e no histórico de `backtest_last_swap_date`.
-    Verifica se passou do horário de fechamento de NY (22:00 UTC) e aplica os swaps cumulativos corretamente.
+    Applies swaps to open positions based on `last_candle` and the `backtest_last_swap_date` history.
+    Verifies if passed the closing time of NY (22:00 UTC) and applies cumulative swaps correctly.
 
     Args:
-        operation_class (Operation): Classe contendo as informações das posições abertas e parâmetros da conta.
+        operation_class (Operation): Class containing open positions information and account parameters.
     """
     last_swap_date = operation_class.account_data.backtest_last_swap_date
-    last_candle_time = max(
-        candle.name for candle in operation_class.backtest_symbols_data["last_candle"]
-    )
+    # Some symbols may not have a last_candle yet (None). Filter them out.
+    _last_candles_col = operation_class.backtest_symbols_data["last_candle"]
+    _available_candles = [c for c in _last_candles_col if c is not None]
+    # If no candles are available yet, there is nothing to apply
+    if not _available_candles:
+        return
+    last_candle_time = max(c.name for c in _available_candles)
 
-    # **Caso especial: primeira aplicação de swap**
+    # **Special case: first swap application**
     if last_swap_date is None:
         if not operation_class.account_data.positions:
-            # Nenhuma posição aberta, então atualiza apenas a última data de swap
+            # No open positions, so only update the last swap date
             operation_class.account_data.backtest_last_swap_date = last_candle_time
         else:
-            # Atualiza a última data de swap para a data da posição mais antiga
+            # Update the last swap date to the time of the oldest position
             oldest_position_time = min(
                 position.time for position in operation_class.account_data.positions
             )
             operation_class.account_data.backtest_last_swap_date = oldest_position_time
         return
 
-    # Calcula a diferença de dias entre o último swap e o último candle
+    # **Calculate the difference in days between the last swap and the last candle**
     days_diff = (last_candle_time.date() - last_swap_date.date()).days
 
-    # **Evita reprocessar se o último swap já foi aplicado após as 22h do mesmo dia**
+    # **Avoid reprocessing if the last swap was already applied after 22h of the same day**
     last_close_time = last_swap_date.replace(hour=22, minute=0, second=0, microsecond=0)
     if (
         last_swap_date >= last_close_time
@@ -1943,65 +1945,65 @@ def __backtest_position_apply_swap_to_positions(operation_class: "Operation") ->
     ):
         return
 
-    # **Itera sobre os dias pendentes para aplicar os swaps**
+    # **Iterate over the pending days to apply swaps**
     for i in range(days_diff + 1):
-        current_date = last_swap_date + timedelta(days=i)  # Data atual no loop
+        current_date = last_swap_date + timedelta(days=i)  # Current date in the loop
         close_time_current = current_date.replace(
             hour=22, minute=0, second=0, microsecond=0
-        )  # Horário de fechamento
+        )  # Closing time
 
-        # **Se o último swap foi aplicado após 22h, ignora este dia**
+        # **If the last swap was applied after 22h, ignore this day**
         if (
             last_swap_date.date() == current_date.date()
             and close_time_current < last_swap_date
         ):
             continue
 
-        # **Se ainda não chegou às 22h no último dia, não aplica o swap**
+        # **If the last swap was applied after 22h, ignore this day**
         if (
             current_date.date() == last_candle_time.date()
             and last_candle_time < close_time_current
         ):
             continue
 
-        # **Ignora sábado e domingo (mercado fechado)**
-        weekday = (current_date.weekday() + 1) % 7  # Ajusta para que domingo seja 0
+        # **Ignore Saturday and Sunday (market closed)**
+        weekday = (current_date.weekday() + 1) % 7  # Adjusts Sunday to be 0
         if weekday in (0, 6):
             continue
 
-        # **Evita reaplicar swap no mesmo dia após 22h**
+        # **Avoid reaplying swap on the same day after 22h**
         if (
             last_swap_date >= close_time_current
             and current_date == last_swap_date.date()
         ):
             continue
 
-        # **Aplica swap às posições abertas**
+        # **Apply swap to open positions**
         for position in operation_class.account_data.positions:
-            # **Ignora posições abertas após a data atual**
+            # **Ignore positions opened after the current date**
             if position.time > close_time_current:
                 continue
 
             symbol = position.symbol
             rollover_day = operation_class.backtest_symbols_data.loc[
                 symbol, "swap_rollover3days"
-            ]  # Dia padrão de rollover triplo é quarta-feira
+            ]  # Default rollover day for triple is Wednesday
 
-            # **Calcula multiplicador de swap (triplo na quarta-feira, normal nos outros dias)**
+            # **Calculate swap multiplier (triple on Wednesday, normal on other days)**
             swap_multiplier = 3 if weekday == rollover_day else 1
             swap_value = __backtest_position_calculate_swap(
                 operation_class, position, swap_multiplier
             )
             position.swap += swap_value
 
-            # **Log informativo com os detalhes do swap aplicado**
+            # **Log informative with swap details applied**
             logging.info(
-                f"[SWAP] {position.symbol} | Data: {current_date.strftime('%Y-%m-%d')} | "
-                f"Swap aplicado: {swap_value:.2f} | Multiplier: {swap_multiplier}x | Swap Total: {position.swap:.2f} | "
+                f"[SWAP] {position.symbol} | Date: {current_date.strftime('%Y-%m-%d')} | "
+                f"Swap applied: {swap_value:.2f} | Multiplier: {swap_multiplier}x | Swap Total: {position.swap:.2f} | "
                 f"Position Time: {position.time.strftime('%Y-%m-%d %H:%M:%S')}"
             )
 
-    # **Atualiza a última data de swap para o horário do último candle**
+    # **Update the last swap date to the time of the last candle**
     operation_class.account_data.backtest_last_swap_date = last_candle_time
 
 
@@ -2009,15 +2011,15 @@ def __backtest_position_calculate_swap(
     operation_class: "Operation", position: "MqlPositionInfo", multiplier: int
 ) -> float:
     """
-    Calcula o valor do swap para uma posição com base no tipo de swap e no multiplicador.
+    Calculates the swap value for a position based on the swap type and multiplier.
 
     Args:
-        operation_class (Operation): Classe contendo as informações da conta e do mercado.
-        position (MqlPositionInfo): Posição aberta para a qual o swap será calculado.
-        multiplier (int): Multiplicador do swap (1 para dias normais, 3 para quarta-feira no Forex).
+        operation_class (Operation): Class containing account and market information.
+        position (MqlPositionInfo): Open position for which the swap will be calculated.
+        multiplier (int): Swap multiplier (1 for normal days, 3 for Wednesday in Forex).
 
     Returns:
-        float: Valor do swap calculado.
+        float: Calculated swap value.
     """
     symbol = position.symbol
     swap_mode = operation_class.backtest_symbols_data.loc[symbol].swap_mode
@@ -2032,7 +2034,7 @@ def __backtest_position_calculate_swap(
     else:
         swap_rate = operation_class.backtest_symbols_data.loc[symbol].swap_short
 
-    # Calcula o swap com base no modo
+    # **Calculate swap based on mode**
     if swap_mode == ENUM_SYMBOL_SWAP_MODE.SYMBOL_SWAP_MODE_POINTS:
         swap_value = swap_rate * multiplier * volume
     elif swap_mode == ENUM_SYMBOL_SWAP_MODE.SYMBOL_SWAP_MODE_CURRENCY_SYMBOL:
@@ -2042,7 +2044,7 @@ def __backtest_position_calculate_swap(
     elif swap_mode == ENUM_SYMBOL_SWAP_MODE.SYMBOL_SWAP_MODE_CURRENCY_DEPOSIT:
         swap_value = swap_rate * multiplier * volume * trade_contract_size
     else:
-        swap_value = 0  # Nenhum swap para modos desativados ou não suportados
+        swap_value = 0  # No swap for disabled or unsupported modes
 
     return round(swap_value, 2)
 
@@ -2050,75 +2052,75 @@ def __backtest_position_calculate_swap(
 # New Candle --------------------------------------------------------------------------------------
 def __process_account_update_data(operation_class: "Operation"):
     """
-    Atualiza os dados da operação após a geração de um novo candle.
+    Updates operation data after generating a new candle.
 
-    Objetivos:
-    - Aplicar swaps às posições abertas.
-    - Atualizar o preço atual e o lucro/prejuízo das posições.
-    - Atualizar os dados de margem da conta (margem usada, margem livre e nível de margem).
-    - Verificar se há necessidade de emitir um alerta de `margin call`.
-    - Verificar se há necessidade de processar um `stop out` e fechar posições.
+    Objectives:
+    - Apply swaps to open positions.
+    - Update the current price and profit/loss of positions.
+    - Update account margin data (used margin, free margin, and margin level).
+    - Check if a `margin call` alert needs to be issued.
+    - Check if a `stop out` needs to be processed and positions need to be closed.
 
     Args:
-        operation_class (Operation): Classe de operação contendo os dados da conta e das posições.
+        operation_class (Operation): Operation class containing account and position data.
     """
-    # **Aplicação de swaps**
+    # **Apply swaps**
     __backtest_position_apply_swap_to_positions(operation_class=operation_class)
 
-    # **Atualização do preço e cálculo de lucro/prejuízo**
+    # **Update price and profit/loss**
     __backtest_position_update_price_and_profit(operation_class=operation_class)
 
-    # **Atualização de dados de margem**
+    # **Update margin data**
     __backtest_account_update_margin(operation_class=operation_class)
 
-    # **Verificação de `margin call`**
+    # **Check `margin call`**
     __backtest_account_check_margin_call(operation_class=operation_class)
 
-    # **Processamento de `stop out` se necessário**
+    # **Process `stop out` if necessary**
     __backtest_account_process_stop_out(operation_class=operation_class)
 
 
 def __process_account_after_candle_event(operation_class: "Operation"):
     """
-    Processa eventos relacionados a ordens pendentes e posições após a geração de um novo candle.
+    Process events related to pending orders and positions after generating a new candle.
 
-    Objetivos:
-    - Verificar se ordens pendentes foram acionadas pelo preço atual.
-    - Verificar se ordens pendentes expiraram devido ao tempo.
-    - Verificar se posições abertas atingiram o `stop loss` e precisam ser fechadas.
-    - Verificar se posições abertas atingiram o `take profit` e precisam ser fechadas.
+    Objectives:
+    - Verify if pending orders were triggered by the current price.
+    - Verify if pending orders expired due to time.
+    - Verify if open positions reached the `stop loss` and need to be closed.
+    - Verify if open positions reached the `take profit` and need to be closed.
 
     Args:
-        operation_class (Operation): Classe de operação contendo os dados da conta e das posições.
+        operation_class (Operation): Operation class containing account and position data.
     """
-    # **Verificação de acionamento de ordens pendentes**
+    # **Verification of pending order activation**
     __backtest_pending_order_check_triggered(operation_class=operation_class)
 
-    # **Verificação de ordens pendentes expiradas**
+    # **Verification of pending orders expired**
     __backtest_pending_order_check_expiration(operation_class=operation_class)
 
-    # **Verificação de posições que atingiram o `stop loss`**
+    # **Verification of positions that reached the `stop loss`**
     __backtest_position_check_stop_loss_reached(operation_class=operation_class)
 
-    # **Verificação de posições que atingiram o `take profit`**
+    # **Verification of positions that reached the `take profit`**
     __backtest_position_check_take_profit_reached(operation_class=operation_class)
 
 
 def __process_account_new_candle_event(operation_class: "Operation"):
     """
-    Processa eventos relacionados à geração de um novo candle.
+    Process events related to generating a new candle.
 
-    Objetivos:
-    - Executar verificações após o fechamento do candle para atualizar ordens e posições.
-    - Atualizar os dados das posições abertas e da conta, como margem, lucro e alertas de risco.
+    Objectives:
+    - Execute verifications after the candle close to update orders and positions.
+    - Update open positions and account data, such as margin, profit, and risk alerts.
 
     Args:
-        operation_class (Operation): Classe de operação contendo os dados da conta e das posições.
+        operation_class (Operation): Operation class containing account and position data.
     """
-    # **Processamento de eventos após o fechamento do candle**
+    # **Process events after candle close to update orders and positions**
     __process_account_after_candle_event(operation_class=operation_class)
 
-    # **Atualização de dados após um novo candle**
+    # **Update data after a new candle**
     __process_account_update_data(operation_class=operation_class)
 
 
