@@ -1,41 +1,41 @@
-# Importações de bibliotecas externas necessárias
+# Imports of external libraries
 import pytest
-from datetime import datetime, timezone  # Manipulação de datas e fuso horário
-import pandas as pd  # Biblioteca para manipulação de dados em formato de séries e tabelas
+from datetime import datetime, timezone  # Data and time manipulation
+import pandas as pd  # Library for data manipulation in series and tables format
 
-# Importações de classes e enums do modelo de metatrader (definições relacionadas ao mercado financeiro)
+# Imports of classes and enums from the metatrader model (definitions related to the financial market)
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    MqlAccountInfo,  # Classe que contém as informações da conta no MetaTrader 5
-    ENUM_SYMBOL_SWAP_MODE,  # Enum que define os modos de cálculo de swap
-    ENUM_ACCOUNT_TRADE_MODE,  # Enum que define os modos de negociação da conta
-    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum que define os modos de stop out da conta
-    ENUM_ACCOUNT_MARGIN_MODE,  # Enum que define os modos de margem da conta
-    ENUM_ORDER_TYPE_MARKET,  # Enum que define os tipos de ordens de mercado
-    ENUM_SYMBOL_CALC_MODE,  # Enum que define os modos de cálculo do contrato de mercado
+    MqlAccountInfo,  # Class that contains account information in MetaTrader 5
+    ENUM_SYMBOL_SWAP_MODE,  # Enum that defines the swap calculation modes
+    ENUM_ACCOUNT_TRADE_MODE,  # Enum that defines the account trading modes
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum that defines the account stop out modes
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum that defines the account margin modes
+    ENUM_ORDER_TYPE_MARKET,  # Enum that defines the market order types
+    ENUM_SYMBOL_CALC_MODE,  # Enum that defines the contract calculation modes
 )
 
-# Importações das funções de backtest
+# Imports of backtest functions
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __backtest_position_apply_swap_to_positions,  # Função que aplica o swap às posições abertas
-    __backtest_position_open,  # Função que realiza a abertura de posições durante o backtest
+    __backtest_position_apply_swap_to_positions,  # Function that applies swap to open positions
+    __backtest_position_open,  # Function that opens positions during backtesting
 )
 
-# Importação da classe `Account` responsável por login e gerenciamento de informações da conta
+# Import of the `Account` class responsible for login and account information management
 from algo_trading.sources.MetaTrader5_source.account.account import Account
 
 
 @pytest.fixture
 def account():
-    """Fixture que cria uma instância de conta para os testes.
+    """Fixture that creates an account instance for testing.
 
-    Simula o login em uma conta ao vivo.
+    Simulates login to a live account before backtesting.
 
     Returns:
-        Account: Instância de conta com dados configurados.
+        Account: Account instance with configured data."
     """
     account = Account()
 
-    # Simula login na conta ao vivo antes do backtest
+    # Simulates login to a live account before backtesting
     account.live_account_data = MqlAccountInfo(
         login=123456,
         trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
@@ -72,20 +72,20 @@ def account():
 
 def test_apply_swap_to_multiple_positions(account: Account):
     """
-    Testa a aplicação de swaps em múltiplas posições abertas para o par EURUSD.
+    Tests the application of swaps to multiple open positions for the EURUSD pair.
 
-    Objetivo:
-    - Verificar se os swaps são aplicados corretamente às posições abertas com base nas configurações.
-    - Avaliar se os valores de swap diferem entre posições de compra e venda.
-    - Considerar o rollover triplo na quarta-feira.
+    Objective:
+    - Verify if swaps are applied correctly to open positions based on the configuration.
+    - Evaluate if swap values differ between buy and sell positions.
+    - Consider triple rollover on Wednesday.
 
-    Configurações:
-    - Swap por pontos (SYMBOL_SWAP_MODE_POINTS).
-    - Swap triplo aplicado na quarta-feira (3 dias).
-    - Posição de compra com swap -1.0 por lote.
-    - Posição de venda com swap -0.5 por lote.
+    Configuration:
+    - Swap by points (SYMBOL_SWAP_MODE_POINTS).
+    - Triple rollover applied on Wednesday (3 days).
+    - Buy position with swap -1.0 per lot.
+    - Sell position with swap -0.5 per lot.
     """
-    # Login na conta de backtest com saldo inicial e alavancagem configurados
+    # Login to the backtest account with initial balance and leverage configured
     account.login_backtest(balance=10000, leverage=100)
     account.backtest_account_data.margin_mode = (
         ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
@@ -111,24 +111,24 @@ def test_apply_swap_to_multiple_positions(account: Account):
         "last_candle": None,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Configuração de datas
+    # Configuration of dates
     last_swap_date = datetime(
         2025, 1, 8, 20, 0, tzinfo=timezone.utc
-    )  # Quarta-feira 20h
+    )  # Wednesday 20h
     last_candle_time = datetime(
         2025, 1, 10, 23, 0, tzinfo=timezone.utc
-    )  # Sexta-feira 23h
+    )  # Friday 23h
     operation_handler.account_data.backtest_last_swap_date = last_swap_date
 
-    # Última vela (candle) de preço para EURUSD
+    # Last price candle for EURUSD
     last_candle = {
         "open": 1.12,
         "high": 1.15,
@@ -139,19 +139,19 @@ def test_apply_swap_to_multiple_positions(account: Account):
         last_candle, name=last_swap_date
     )
 
-    # Abertura de uma posição de compra e uma de venda
+    # Open a buy position and a sell position
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Posição de compra
-        volume=1,  # 1 lote
+        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Buy position
+        volume=1,  # 1 lot
         comment="Position 1 (Buy)",
     )
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Posição de venda
-        volume=2,  # 2 lotes
+        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Sell position
+        volume=2,  # 2 lots
         comment="Position 2 (Sell)",
     )
 
@@ -159,25 +159,25 @@ def test_apply_swap_to_multiple_positions(account: Account):
         last_candle, name=last_candle_time
     )
 
-    # Aplicação dos swaps às posições abertas
+    # Application of swaps to open positions
     __backtest_position_apply_swap_to_positions(operation_handler)
 
-    # Obtenção das posições para verificação
+    # Obtaining positions for verification
     positions = account.backtest_account_data.positions
 
-    # Assertivas para garantir que as posições estão corretas
-    assert len(positions) == 2, "O número de posições não corresponde ao esperado."
+    # Asserts to ensure that the positions are correct
+    assert len(positions) == 2, "The number of positions does not match the expected value."
 
-    # Verificação dos valores de swap
+    # Verification of swap values
     buy_swap = -5.0
     sell_swap = -5.0
 
     assert (
         positions[0].swap == buy_swap
-    ), f"Swap da posição de compra está incorreto. Esperado: {buy_swap}, obtido: {positions[0].swap}"
+    ), f"Swap of the buy position is incorrect. Expected: {buy_swap}, obtained: {positions[0].swap}"
     assert (
         positions[1].swap == sell_swap
-    ), f"Swap da posição de venda está incorreto. Esperado: {sell_swap}, obtido: {positions[1].swap}"
+    ), f"Swap of the sell position is incorrect. Expected: {sell_swap}, obtained: {positions[1].swap}"
 
 
 def test_apply_triple_rollover_on_wednesday_night(account: Account):
@@ -206,10 +206,10 @@ def test_apply_triple_rollover_on_wednesday_night(account: Account):
         "last_candle": None,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
@@ -226,17 +226,17 @@ def test_apply_triple_rollover_on_wednesday_night(account: Account):
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Posição de compra
-        volume=1,  # 1 lote
-        comment="Position 1 (Buy)",  # Comentário identificando a posição
+        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Buy position
+        volume=1,  # 1 lot
+        comment="Position 1 (Buy)",  # Comment identifying the position
     )
 
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Posição de venda
-        volume=2,  # 2 lotes
-        comment="Position 2 (Sell)",  # Comentário identificando a posição
+        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Sell position
+        volume=2,  # 2 lots
+        comment="Position 2 (Sell)",  # Comment identifying the position
     )
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.12, "high": 1.15, "low": 1.11, "close": 1.13},
@@ -280,10 +280,10 @@ def test_apply_single_rollover_on_thursday_night(account: Account):
         "last_candle": None,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
@@ -354,10 +354,10 @@ def test_no_swap_applied_before_market_closing(account: Account):
         "last_candle": None,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
@@ -426,10 +426,10 @@ def test_apply_triple_rollover_on_sell_position(account: Account):
         "last_candle": None,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
@@ -491,10 +491,10 @@ def test_no_swap_applied_during_weekend(account: Account):
         "last_candle": None,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
@@ -534,7 +534,6 @@ def test_no_swap_on_first_day_before_close(account: Account):
     symbol = "EURUSD"
 
     # Complete configuration
-    # Define os dados do novo símbolo como um dicionário
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -550,20 +549,18 @@ def test_no_swap_on_first_day_before_close(account: Account):
         "last_candle": None,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    operation_handler.account_data.backtest_last_swap_date = (
-        None  # Sem histórico de swap
-    )
+    operation_handler.account_data.backtest_last_swap_date = None
     last_candle_time = datetime(
         2025, 1, 3, 18, 0, tzinfo=timezone.utc
-    )  # Sexta-feira 18h
+    )  # Friday 18h
 
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.12, "high": 1.15, "low": 1.11, "close": 1.13},
@@ -610,10 +607,10 @@ def test_no_duplicate_swap_on_friday(account: Account):
         "last_candle": None,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
@@ -621,10 +618,10 @@ def test_no_duplicate_swap_on_friday(account: Account):
     # Friday after market close
     operation_handler.account_data.backtest_last_swap_date = datetime(
         2025, 1, 17, 23, 0, tzinfo=timezone.utc
-    )  # Sexta-feira 23h
+    )  # Friday 23h
     last_candle_time = datetime(
         2025, 1, 19, 12, 0, tzinfo=timezone.utc
-    )  # Domingo 12h (ainda fechado)
+    )  # Sunday 12h (still closed)
 
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.12, "high": 1.15, "low": 1.11, "close": 1.13},
@@ -678,33 +675,33 @@ def test_swap_applied_only_after_positions_opened(account: Account):
         "last_candle": None,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Configuração de datas
+    # Configuration of dates
     last_swap_date = datetime(
         2025, 1, 6, 22, 0, tzinfo=timezone.utc
-    )  # Segunda-feira 22h
+    )  # Monday 22h
     last_candle_before_open = datetime(
         2025, 1, 9, 23, 0, tzinfo=timezone.utc
-    )  # Quinta-feira 23h
+    )  # Thursday 23h
     last_candle_after_open = datetime(
         2025, 1, 10, 23, 0, tzinfo=timezone.utc
-    )  # Sexta-feira 23h
+    )  # Friday 23h
 
-    # Define a última data de swap na conta
+    # Sets the last swap date in the account
     operation_handler.account_data.backtest_last_swap_date = last_swap_date
 
-    # Adiciona o último candle antes de abrir a posição
+    # Adds the last candle before opening the position
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.12, "high": 1.15, "low": 1.11, "close": 1.13},
         name=last_candle_before_open,
     )
 
-    # Abre posições após o candle de quinta-feira
+    # Opens positions after the Thursday candle
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -721,30 +718,30 @@ def test_swap_applied_only_after_positions_opened(account: Account):
         comment="Position 2 (Sell)",
     )
 
-    # Atualiza o último candle para sexta-feira
+    # Updates the last candle for Friday
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.13, "high": 1.16, "low": 1.12, "close": 1.14},
         name=last_candle_after_open,
     )
 
-    # Aplica os swaps às posições abertas
+    # Applies swaps to open positions
     __backtest_position_apply_swap_to_positions(operation_handler)
 
-    # Obtenção das posições para verificação
+    # Obtains positions for verification
     positions = account.backtest_account_data.positions
 
-    # Verifica se há exatamente 2 posições abertas
+    # Verifies if there are exactly 2 open positions
     assert (
         len(positions) == 2
-    ), "O número de posições abertas não corresponde ao esperado."
+    ), "The number of open positions does not match the expected value."
 
-    # Verifica o swap aplicado nas posições
-    buy_swap = -1.0  # 1 lote, swap_long = -1.0
-    sell_swap = -1.0  # 2 lotes, swap_short = -0.5 * 2 = -1.0
+    # Verifies the swap applied to the positions
+    buy_swap = -1.0  # 1 lot, swap_long = -1.0
+    sell_swap = -1.0  # 2 lots, swap_short = -0.5 * 2 = -1.0
 
     assert (
         positions[0].swap == buy_swap
-    ), f"Swap da posição de compra está incorreto. Esperado: {buy_swap}, obtido: {positions[0].swap}"
+    ), f"Swap of the buy position is incorrect. Expected: {buy_swap}, obtained: {positions[0].swap}"
     assert (
         positions[1].swap == sell_swap
-    ), f"Swap da posição de venda está incorreto. Esperado: {sell_swap}, obtido: {positions[1].swap}"
+    ), f"Swap of the sell position is incorrect. Expected: {sell_swap}, obtained: {positions[1].swap}"

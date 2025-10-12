@@ -1,35 +1,35 @@
-# Imports para bibliotecas externas
-import pytest  # Biblioteca para criação de testes unitários
+# Imports for external libraries
+import pytest  # Library for creating unit tests
 from datetime import (
     datetime,
     timezone,
 )
 
-# Classes para manipulação de datas e fuso horário
-import pandas as pd  # Biblioteca para manipulação de DataFrames
+# Classes for date and time manipulation
+import pandas as pd  # Library for DataFrame manipulation
 
-# Imports de enums, classes e modelos relacionados ao MetaTrader5
+# Imports of enums, classes and models related to MetaTrader5
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    ENUM_ORDER_TYPE_MARKET,  # Enum para tipos de ordens de mercado
-    ENUM_POSITION_TYPE,  # Enum para tipos de posições (compra/venda)
-    ENUM_ACCOUNT_MARGIN_MODE,  # Enum para modos de margem de conta
-    MqlAccountInfo,  # Modelo de informações da conta MetaTrader5
-    ENUM_ACCOUNT_TRADE_MODE,  # Enum para modos de operação da conta
-    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum para modos de stopout da conta
-    ENUM_DEAL_TYPE,  # Enum para tipos de negócio (ex.: execução de ordem)
-    ENUM_DEAL_ENTRY,  # Enum para entradas de negociação (entrada, saída)
+    ENUM_ORDER_TYPE_MARKET,  # Enum for market order types
+    ENUM_POSITION_TYPE,  # Enum for position types
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum for account margin modes
+    MqlAccountInfo,  # Model of MetaTrader5 account information
+    ENUM_ACCOUNT_TRADE_MODE,  # Enum for account operation modes
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum for account stopout modes
+    ENUM_DEAL_TYPE,  # Enum for deal types (e.g., order execution)
+    ENUM_DEAL_ENTRY,  # Enum for deal entries (entry, exit)
     ENUM_SYMBOL_SWAP_MODE,
     ENUM_SYMBOL_CALC_MODE,
 )
 
-# Imports de funções específicas relacionadas ao backtest
+# Imports of specific functions related to backtesting
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __hedge_create_position_and_deal,  # Função interna para criar posição e negócio no modo hedge
-    __netting_create_position_and_deal,  # Função interna para criar posição e negócio no modo netting
-    __backtest_position_open,  # Função interna para abrir posição durante um backtest
+    __hedge_create_position_and_deal,  # Internal function to create position and deal in hedge mode
+    __netting_create_position_and_deal,  # Internal function to create position and deal in netting mode
+    __backtest_position_open,  # Internal function to open position during backtesting
 )
 
-# Import do módulo Account (gerenciamento de conta)
+# Import of the Account module (account management)
 from algo_trading.sources.MetaTrader5_source.account.account import Account
 
 from algo_trading.sources.MetaTrader5_source.utils.exceptions import (
@@ -39,16 +39,16 @@ from algo_trading.sources.MetaTrader5_source.utils.exceptions import (
 
 @pytest.fixture
 def account():
-    """Fixture que cria uma instância de conta para os testes.
+    """Fixture that creates an account instance for tests.
 
-    Simula o login em uma conta ao vivo.
+    Simulates logging into a live account before backtesting.
 
     Returns:
-        Account: Instância de conta com dados configurados.
+        Account: Account instance with configured data.
     """
     account = Account()
 
-    # Simula login na conta ao vivo antes do backtest
+    # Simulates logging into a live account before backtesting
     account.live_account_data = MqlAccountInfo(
         login=123456,
         trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
@@ -84,43 +84,43 @@ def account():
 
 
 def test_hedge_create_position_and_deal(account):
-    """Teste para `__hedge_create_position_and_deal`.
+    """Tests the `__hedge_create_position_and_deal` function.
 
-    Este teste verifica o comportamento da função ao criar uma posição e registrar um deal
-    em uma conta de backtest configurada no modo hedge.
+    This test verifies the behavior of the function when creating a position and registering a deal
+    in a backtest account configured in hedge mode.
 
-    O modo hedge permite que múltiplas posições sejam abertas no mesmo par de moedas,
-    possibilitando posições de compra e venda simultâneas sem agregação.
+    The hedge mode allows multiple positions to be opened on the same currency pair,
+    allowing simultaneous buy and sell positions without aggregation.
 
-    Passos do teste:
-    1. Configuração inicial da conta de backtest com saldo e spread.
-    2. Execução da função `__hedge_create_position_and_deal` com parâmetros específicos.
-    3. Verificação das posições abertas e do histórico de deals para garantir o comportamento correto.
+    Test steps:
+    1. Initial configuration of the backtest account with balance and spread.
+    2. Execution of the `__hedge_create_position_and_deal` function with specific parameters.
+    3. Verification of open positions and deal history to ensure correct behavior.
 
     Args:
-        account (Account): Fixture que fornece uma conta de backtest pré-configurada.
+        account (Account): Fixture providing a pre-configured backtest account.
     """
 
-    # Configuração da conta de backtest:
-    # Define o saldo inicial e alavancagem e ativa o modo de backtest.
+    # Configuration of the backtest account:
+    # Sets the initial balance and leverage and activates the backtest mode.
     account.login_backtest(balance=5000, leverage=100)
 
-    # Define o spread simulado para o par de moedas (4 pontos)
+    # Simulates the spread for the currency pair (4 points)
     account.backtest_account_data.simulated_spread = 4
 
-    # Obtém o manipulador de operações a partir da conta de backtest
+    # Gets the operation handler from the backtest account
     operation_handler = account.backtest_account_data.operation
 
-    # Parâmetros para criação da posição
-    symbol = "EURUSD"  # Par de moedas a ser negociado
-    order_type = ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY  # Tipo de ordem (compra)
+    # Parameters for position creation
+    symbol = "EURUSD"  # Currency pair to be traded
+    order_type = ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY  # Order type (buy)
     position_time = datetime(
         2023, 12, 31, tzinfo=timezone.utc
-    )  # Data e hora da operação
-    price = 1.12345  # Preço de entrada da posição
-    volume = 1.0  # Volume da posição (em lotes)
+    )  # Date and time of the operation
+    price = 1.12345  # Opening price
+    volume = 1.0  # Position volume (in lots)
 
-    # Executa a função de criação de posição e registro de deal
+    # Executes the function to create position and register deal
     __hedge_create_position_and_deal(
         operation_class=operation_handler,
         symbol=symbol,
@@ -128,59 +128,59 @@ def test_hedge_create_position_and_deal(account):
         position_time=position_time,
         price=price,
         volume=volume,
-        stop_price=1.12000,  # Stop-loss configurado
-        profit_price=1.13000,  # Take-profit configurado
+        stop_price=1.12000,  # Stop-loss configured
+        profit_price=1.13000,  # Take-profit configured
     )
 
-    # Verificação 1: Deve existir exatamente uma posição aberta após a execução
+    # Verification 1: There should be exactly one open position after execution
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição não foi criada corretamente."
+    ), "The position was not created correctly."
 
-    # Verificação 2: O histórico de deals deve ter exatamente duas entradas:
-    # - 1º: Deal de inicialização da conta (entrada do saldo inicial).
-    # - 2º: Deal correspondente à abertura da nova posição.
+    # Verification 2: The deal history should have exactly two entries:
+    # - 1º: Deal of account initialization (initial deposit).
+    # - 2º: Deal corresponding to the new position opening.
     assert (
         len(operation_handler.account_data.history_deals) == 2
-    ), "O histórico de deals não foi atualizado corretamente."
+    ), "The deal history was not updated correctly."
 
-    # Acessa a posição e o último deal para validar suas informações
-    position = operation_handler.account_data.positions[0]  # Posição aberta
-    deal = operation_handler.account_data.history_deals[-1]  # Último deal registrado
+    # Access the open position and the last deal to validate its information
+    position = operation_handler.account_data.positions[0]  # Open position
+    deal = operation_handler.account_data.history_deals[-1]  # Last registered deal
 
-    # Verificação 3: Valida as informações da posição aberta
+    # Verification 3: Validate the open position information
     assert (
         position.symbol == symbol
-    ), "O símbolo da posição não corresponde ao esperado."
-    assert position.volume == volume, "O volume da posição está incorreto."
+    ), "The symbol of the position does not match the expected value."
+    assert position.volume == volume, "The volume of the position is incorrect."
     assert (
         position.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
-    ), "O tipo de posição deveria ser de compra."
+    ), "The position type should be buy."
     assert (
         deal.price == price
-    ), "O preço de entrada no deal não corresponde ao esperado."
+    ), "The price of the deal does not match the expected value."
 
 
 def test_netting_create_position_and_deal_partial_close(account):
     """
-    Testa o fechamento parcial de uma posição em conta de backtest com netting.
+    Tests the partial closing of a position in a backtest account with netting.
 
-    Este teste verifica se, ao fechar parcialmente uma posição, a operação é
-    realizada corretamente e os dados de posição e histórico de deals são atualizados.
+    This test verifies if, when partially closing a position, the operation is
+    performed correctly and the position and deal history data are updated.
 
     Args:
-        account: Fixture que configura uma conta de backtest com valores iniciais.
+        account: Fixture providing a pre-configured backtest account with initial values.
     """
 
-    # Configura a conta de backtest com um saldo inicial e um spread simulado.
+    # Configures the backtest account with an initial balance and simulated spread.
     account.login_backtest(balance=5000, leverage=100)
-    account.backtest_account_data.simulated_spread = 4  # Simula um spread de 4 pontos.
+    account.backtest_account_data.simulated_spread = 4  # Simulates a spread of 4 points.
 
-    # Obtém o manipulador de operações da conta de backtest.
+    # Gets the operation handler from the backtest account.
     operation_handler = account.backtest_account_data.operation
-    # Define os dados do novo símbolo como um dicionário
-    symbol = "EURUSD"  # Ativo a ser negociado.
-    position_time = datetime(2023, 12, 31, tzinfo=timezone.utc)  # Tempo da posição.
+    # Define the new symbol data as a dictionary
+    symbol = "EURUSD"  # Currency pair to be traded.
+    position_time = datetime(2023, 12, 31, tzinfo=timezone.utc)  # Position time.
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -196,87 +196,87 @@ def test_netting_create_position_and_deal_partial_close(account):
         "last_candle": None,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
-    # **PASSO 1:** Cria uma posição de **compra (BUY)**.
+    # Step 1: Creates a **buy (BUY)** position.
     __netting_create_position_and_deal(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Ordem de compra.
+        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Order type (buy).
         position_time=position_time,
-        price=1.12345,  # Preço de abertura.
-        volume=1.0,  # Volume da posição (1 lote).
+        price=1.12345,  # Opening price.
+        volume=1.0,  # Position volume (1 lot).
     )
 
-    # **PASSO 2:** Fecha parcialmente a posição com uma **venda (SELL)**.
+    # Step 2: Partially closes the position with a **sell (SELL)**.
     __netting_create_position_and_deal(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Ordem de venda.
+        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Order type (sell).
         position_time=position_time,
-        price=1.12,  # Preço de fechamento.
-        volume=0.5,  # Fecha metade do volume (0.5 lotes).
+        price=1.12,  # Closing price.
+        volume=0.5,  # Closes half of the volume (0.5 lots).
     )
 
-    # **Verificações:** Confirma se os valores de posição e histórico de deals foram atualizados corretamente.
+    # Verifications: Confirms if the position and deal history values were updated correctly.
 
-    # A posição restante deve ter volume de 0.5 lotes.
+    # The remaining position should have a volume of 0.5 lots.
     assert operation_handler.account_data.positions[0].volume == 0.5
 
-    # A direção da posição deve permanecer como BUY (pois foi uma venda parcial).
+    # The position direction should remain as BUY (since it was a partial sell).
     assert (
         operation_handler.account_data.positions[0].type
         == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
     )
 
-    # Deve haver exatamente 3 deals no histórico:
-    # 1º: Deal de inicialização da conta de backtest (inicialização com saldo).
-    # 2º: Abertura da posição de compra (BUY).
-    # 3º: Fechamento parcial da posição com venda (SELL).
+    # There should be exactly 3 deals in the history:
+    # 1º: Deal of account initialization (initial deposit).
+    # 2º: Opening of the buy position (BUY).
+    # 3º: Partial closing of the position with sell (SELL).
     assert len(operation_handler.account_data.history_deals) == 3
 
-    # Verifica se o lucro da operação foi calculado corretamente.
-    # Cálculo esperado:
-    # - Diferença de preço: (1.12345 - 1.12) = 0.00345 (pontos perdidos).
-    # - Volume parcial: 0.5 (lotes).
-    # - Tamanho do contrato: 100_000 unidades da moeda base.
-    # Lucro: 100_000 * 0.5 * -0.00345 = -172.5.
+    # Verifies if the operation profit was calculated correctly.
+    # Expected calculation:
+    # - Price difference: (1.12345 - 1.12) = 0.00345 (points lost).
+    # - Partial volume: 0.5 (lots).
+    # - Contract size: 100_000 units of the base currency.
+    # Profit: 100_000 * 0.5 * -0.00345 = -172.5.
     assert operation_handler.account_data.history_deals[-1].profit == -172.5
 
 
 def test_netting_create_position_and_deal_reversal(account):
-    """Teste para a função `__netting_create_position_and_deal` com reversão de posição.
+    """Tests the `__netting_create_position_and_deal` function with position reversal.
 
-    Este teste simula um cenário de reversão em uma conta configurada para netting,
-    onde uma posição aberta (SELL) é revertida com uma nova posição oposta (BUY).
-    Verifica-se se a posição original é fechada e se o lucro/perda é calculado corretamente.
+    This test simulates a reversal scenario in a netting-configured account,
+    where an open position (SELL) is reversed with an opposite position (BUY).
+    Verifies if the original position is closed and if the profit/loss is calculated correctly.
 
     Args:
-        account (Account): Fixture que fornece uma conta de backtest configurada.
+        account (Account): Fixture providing a backtest account configured.
     """
 
-    # Configuração inicial da conta de backtest
+    # Initial backtest account configuration
     account.login_backtest(
         balance=5000, leverage=100
-    )  # Inicializa o backtest com saldo de 5000 e alavancagem de 1:100
+    )  # Initializes the backtest with a balance of 5000 and leverage of 1:100
     account.backtest_account_data.simulated_spread = (
-        4  # Define o spread simulado de 4 pontos
+        4  # Defines the simulated spread of 4 points
     )
 
-    # Parâmetros da posição inicial (SELL)
-    symbol = "EURUSD"  # Par de moedas negociado
-    position_time = datetime(2023, 12, 31, tzinfo=timezone.utc)  # Data/hora da execução
-    initial_price = 1.12345  # Preço de abertura da posição SELL
-    initial_volume = 1.0  # Volume inicial da posição (em lotes)
+    # Initial position parameters (SELL)
+    symbol = "EURUSD"  # Currency pair to be traded
+    position_time = datetime(2023, 12, 31, tzinfo=timezone.utc)  # Execution date and time
+    initial_price = 1.12345  # Opening price of the SELL position
+    initial_volume = 1.0  # Initial position volume (in lots)
 
-    # Obtém o manipulador de operações a partir da conta de backtest
+    # Gets the operation handler from the backtest account
     operation_handler = account.backtest_account_data.operation
-    # Define os dados do novo símbolo como um dicionário
+    # Defines the new symbol data as a dictionary
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -292,15 +292,15 @@ def test_netting_create_position_and_deal_reversal(account):
         "last_candle": None,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Criação da posição inicial de venda (SELL)
+    # Creates the initial sell position
     __netting_create_position_and_deal(
         operation_class=operation_handler,
         symbol=symbol,
@@ -310,21 +310,21 @@ def test_netting_create_position_and_deal_reversal(account):
         volume=initial_volume,
     )
 
-    # Verificações após abertura da posição inicial:
-    # Deve haver exatamente uma posição aberta do tipo SELL
+    # Verifications after opening the initial position:
+    # There should be exactly one open position of type SELL
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição inicial não foi criada corretamente."
+    ), "The initial position was not created correctly."
     assert (
         operation_handler.account_data.positions[0].type
         == ENUM_POSITION_TYPE.POSITION_TYPE_SELL
-    ), "A posição inicial deveria ser de venda."
+    ), "The initial position should be of type SELL."
 
-    # Parâmetros para a reversão da posição (compra maior que o volume da venda inicial)
-    reversal_price = 1.12500  # Preço de entrada da posição BUY (reversão)
-    reversal_volume = 2.0  # Volume maior para forçar a reversão completa
+    # Parameters for position reversal (buy volume greater than the initial sell volume)
+    reversal_price = 1.12500  # Opening price of the BUY position (reversal)
+    reversal_volume = 2.0  # Greater volume to force complete reversal
 
-    # Execução da posição oposta de compra (BUY)
+    # Creates the buy position to reverse the initial sell position
     __netting_create_position_and_deal(
         operation_class=operation_handler,
         symbol=symbol,
@@ -334,24 +334,24 @@ def test_netting_create_position_and_deal_reversal(account):
         volume=reversal_volume,
     )
 
-    # Verificações após a reversão:
-    # Deve haver apenas uma posição aberta e deve ser do tipo BUY
+    # Verifications after reversal:
+    # There should be only one open position and it should be of type BUY
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição não foi revertida corretamente."
+    ), "The position was not reversed correctly."
     position = operation_handler.account_data.positions[0]
     assert (
         position.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
-    ), "A posição deveria ser de compra após a reversão."
-    assert position.volume == 1.0, "O volume da posição está incorreto após a reversão."
+    ), "The position should be of type BUY after reversal."
+    assert position.volume == 1.0, "The position volume is incorrect after reversal."
 
-    # Verificações no histórico de deals:
-    # Deve haver exatamente 3 deals: criação da posição SELL, fechamento da SELL e abertura da BUY
+    # Verifications in the deal history:
+    # There should be exactly 3 deals: creation of the SELL position, closing of the SELL, and opening of the BUY
     assert (
         len(operation_handler.account_data.history_deals) == 3
-    ), "O histórico de deals não foi atualizado corretamente."
+    ), "The deal history was not updated correctly."
 
-    # Verifica o lucro/perda do deal de fechamento da posição
+    # Verifies the profit/loss of the closing deal
     last_deal = operation_handler.account_data.history_deals[-1]
     expected_profit = (
         operation_handler.backtest_symbols_data.loc[symbol].contract_size
@@ -360,41 +360,41 @@ def test_netting_create_position_and_deal_reversal(account):
     )
     assert last_deal.profit == round(
         expected_profit, 2
-    ), f"O lucro esperado é {expected_profit}, mas foi {last_deal.profit}."
+    ), f"The expected profit is {expected_profit}, but it was {last_deal.profit}."
     assert (
         last_deal.type == ENUM_DEAL_TYPE.DEAL_TYPE_BUY
-    ), "O tipo do último deal deveria ser BUY após a reversão."
+    ), "The last deal type should be BUY after reversal."
     assert (
         last_deal.entry == ENUM_DEAL_ENTRY.DEAL_ENTRY_INOUT
-    ), "A entrada do último deal deveria ser de reversão (INOUT)."
+    ), "The last deal entry should be of type INOUT after reversal."
 
 
 def test_backtest_open_position_hedging(account):
     """
-    Testa a função __backtest_open_position para o modo Hedge.
+    Tests the __backtest_open_position function for the Hedge mode.
 
-    Verifica se a função realiza a abertura de posições corretamente em uma conta configurada para o modo Hedge,
-    onde múltiplas posições na mesma ou em direções opostas são permitidas.
+    Verifies if the function opens positions correctly in a backtest account configured for the Hedge mode,
+    where multiple positions in the same or opposite directions are allowed.
     """
 
-    # Configuração inicial da conta de backtest
+    # Initial backtest account configuration
     account.login_backtest(
         balance=5000, leverage=100
-    )  # Inicializa o backtest com saldo de 5000 e alavancagem de 1:100
+    )  # Initializes the backtest with a balance of 5000 and leverage of 1:100
     account.backtest_account_data.simulated_spread = (
-        4  # Define o spread simulado de 4 pontos
+        4  # Defines the simulated spread of 4 points
     )
 
-    # Parâmetros da posição inicial
-    symbol = "EURUSD"  # Par de moedas negociado
-    initial_price = 1.12345  # Preço de abertura da posição
-    initial_volume = 1.0  # Volume inicial da posição (em lotes)
-    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Data/hora do candle
+    # Initial position parameters
+    symbol = "EURUSD"  # Currency pair to be traded
+    initial_price = 1.12345  # Opening price of the position
+    initial_volume = 1.0  # Initial position volume (in lots)
+    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Candle execution time
 
-    # Obtém o manipulador de operações a partir da conta de backtest
+    # Gets the operation handler from the backtest account
     operation_handler = account.backtest_account_data.operation
 
-    # Mock de candle para simulação
+    # Mock of candle for simulation
     mock_series_data = {
         "open": 1.12340,
         "high": 1.12360,
@@ -405,7 +405,7 @@ def test_backtest_open_position_hedging(account):
     mock_time_index = pd.to_datetime(position_time)
     mock_series = pd.Series(mock_series_data, name=mock_time_index)
 
-    # Define os dados do novo símbolo como um dicionário
+    # Define the new symbol data as a dictionary
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -421,20 +421,20 @@ def test_backtest_open_position_hedging(account):
         "last_candle": mock_series,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Configuração para modo Hedge
+    # Configuration for Hedge mode
     operation_handler.account_data.margin_mode = (
         ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
     )
 
-    # Execução do teste: abertura de posição de compra no modo Hedge
+    # Execution of the test: opening a buy position in Hedge mode
     result = __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -445,64 +445,64 @@ def test_backtest_open_position_hedging(account):
         comment="Teste de Hedge Mode",
     )
 
-    # Verificações de resultado
-    assert result is True, "A função não retornou True para Hedge mode."
+    # Verifications of result
+    assert result is True, "The function did not return True for Hedge mode."
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição não foi criada corretamente no modo Hedge."
+    ), "The position was not created correctly in Hedge mode."
     assert (
         operation_handler.account_data.positions[0].type
         == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
-    ), "A posição deveria ser do tipo BUY."
+    ), "The position should be of type BUY."
     assert (
         operation_handler.account_data.positions[0].symbol == symbol
-    ), "O símbolo da posição não corresponde ao esperado."
+    ), "The symbol of the position does not match the expected value."
     assert (
         operation_handler.account_data.positions[0].volume == initial_volume
-    ), "O volume da posição está incorreto."
+    ), "The volume of the position is incorrect."
 
-    # Verificação de histórico de deals
+    # Verifications of deal history
     assert (
         len(operation_handler.account_data.history_deals) == 2
-    ), "O histórico de deals não foi atualizado corretamente."
+    ), "The deal history was not updated correctly."
     last_deal = operation_handler.account_data.history_deals[-1]
     assert (
         last_deal.type == ENUM_DEAL_TYPE.DEAL_TYPE_BUY
-    ), "O último deal deveria ser do tipo BUY."
+    ), "The last deal type should be BUY."
     assert (
         last_deal.symbol == symbol
-    ), "O símbolo do último deal não corresponde ao esperado."
+    ), "The symbol of the last deal does not match the expected value."
     assert (
         last_deal.volume == initial_volume
-    ), "O volume do último deal não corresponde ao esperado."
+    ), "The volume of the last deal does not match the expected value."
 
 
 def test_backtest_open_position_netting(account):
     """
-    Testa a função __backtest_open_position para o modo Netting.
+    Tests the __backtest_open_position function for the Netting mode.
 
-    Verifica se a função realiza a abertura e fechamento de posições corretamente em uma conta configurada para o modo Netting,
-    onde apenas uma posição consolidada por símbolo é permitida.
+    Verifies if the function opens and closes positions correctly in a backtest account configured for the Netting mode,
+    where only one consolidated position per symbol is allowed.
     """
 
-    # Configuração inicial da conta de backtest
+    # Initial backtest account configuration
     account.login_backtest(
         balance=5000, leverage=100
-    )  # Inicializa o backtest com saldo de 5000 e alavancagem de 1:100
+    )  # Initializes the backtest with a balance of 5000 and leverage of 1:100
     account.backtest_account_data.simulated_spread = (
-        4  # Define o spread simulado de 4 pontos
+        4  # Defines the simulated spread of 4 points
     )
 
-    # Parâmetros da posição inicial
-    symbol = "EURUSD"  # Par de moedas negociado
-    initial_price = 1.12345  # Preço de abertura da posição
-    initial_volume = 1.0  # Volume inicial da posição (em lotes)
-    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Data/hora do candle
+    # Initial position parameters
+    symbol = "EURUSD"  # Currency pair to be traded
+    initial_price = 1.12345  # Opening price of the position
+    initial_volume = 1.0  # Initial position volume (in lots)
+    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Candle execution time
 
-    # Obtém o manipulador de operações a partir da conta de backtest
+    # Gets the operation handler from the backtest account
     operation_handler = account.backtest_account_data.operation
 
-    # Mock de candle para simulação
+    # Mock of candle for simulation
     mock_series_data = {
         "open": 1.12340,
         "high": 1.12360,
@@ -513,7 +513,7 @@ def test_backtest_open_position_netting(account):
     mock_time_index = pd.to_datetime(position_time)
     mock_series = pd.Series(mock_series_data, name=mock_time_index)
 
-    # Define os dados do novo símbolo como um dicionário
+    # Define the new symbol data as a dictionary
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -529,44 +529,44 @@ def test_backtest_open_position_netting(account):
         "last_candle": mock_series,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Configuração para modo Netting
+    # Configuration for Netting mode
     operation_handler.account_data.margin_mode = (
         ENUM_ACCOUNT_MARGIN_MODE.ACCOUNT_MARGIN_MODE_RETAIL_NETTING
     )
 
-    # Execução do teste: abertura de posição de compra no modo Netting
+    # Execution of the test: opening a buy position in Netting mode
     result = __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
         order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,
         volume=initial_volume,
-        stop_price=1.12,  # Preço de stop-loss
-        profit_price=1.13,  # Preço de take-profit
+        stop_price=1.12,  # Stop-loss price
+        profit_price=1.13,  # Take-profit price
         comment="Teste de Netting Mode",
     )
 
-    # Verificações de resultado
-    assert result is True, "A função não retornou True para Netting mode."
+    # Verifications of result
+    assert result is True, "The function did not return True for Netting mode."
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "O modo Netting permitiu múltiplas posições no mesmo par de moedas."
+    ), "The Netting mode allowed multiple positions in the same currency pair."
     assert (
         operation_handler.account_data.positions[0].type
         == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
-    ), "A posição deveria ser do tipo BUY."
+    ), "The position should be of type BUY."
     assert (
         operation_handler.account_data.positions[0].symbol == symbol
-    ), "O símbolo da posição não corresponde ao esperado."
+    ), "The symbol of the position does not match the expected value."
 
-    # Teste de reversão de posição (venda na mesma moeda)
+    # Test of position reversal (sell in the same currency pair)
     result = __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -575,56 +575,56 @@ def test_backtest_open_position_netting(account):
         comment="Reversão de posição no Netting Mode",
     )
 
-    assert result is True, "A função não retornou True para reversão no Netting mode."
+    assert result is True, "The function did not return True for position reversal in Netting mode."
     assert (
         operation_handler.account_data.positions[0].type
         == ENUM_POSITION_TYPE.POSITION_TYPE_SELL
-    ), "A posição não foi revertida para SELL corretamente."
+    ), "The position was not reversed to SELL correctly."
     assert (
         operation_handler.account_data.positions[0].volume == 0.8
-    ), "O volume da posição está incorreto após a reversão."
+    ), "The volume of the position is incorrect after reversal."
 
-    # Verificação de histórico de deals
+    # Verifications of deal history
     assert (
         len(operation_handler.account_data.history_deals) == 3
-    ), "O histórico de deals não foi atualizado corretamente após a reversão."
+    ), "The deal history was not updated correctly after reversal."
     last_deal = operation_handler.account_data.history_deals[-1]
     assert (
         last_deal.type == ENUM_DEAL_TYPE.DEAL_TYPE_SELL
-    ), "O último deal deveria ser do tipo SELL após a reversão."
+    ), "The last deal type should be SELL after reversal."
     assert (
         last_deal.symbol == symbol
-    ), "O símbolo do último deal não corresponde ao esperado."
+    ), "The symbol of the last deal does not match the expected value."
     assert (
         last_deal.volume == 1.8
-    ), "O volume do último deal não corresponde ao esperado."
+    ), "The volume of the last deal does not match the expected value."
 
 
 def test_backtest_open_position_insufficient_margin(account):
     """
-    Testa a função __backtest_position_open para verificar o comportamento em caso de margem insuficiente.
+    Tests the __backtest_position_open function to verify the behavior in case of insufficient margin.
 
-    O teste verifica se uma exceção é levantada quando não há margem suficiente
-    para abrir uma posição na conta de backtest.
+    Verifies if an exception is raised when there is insufficient margin
+    to open a position in the backtest account.
     """
-    # Configuração inicial da conta de backtest com saldo baixo
+    # Initial backtest account configuration with low balance
     account.login_backtest(
         balance=100, leverage=100
-    )  # Apenas $100 de saldo e alavancagem 1:100
+    )  # $100 balance and 1:100 leverage
     account.backtest_account_data.simulated_spread = (
-        4  # Define o spread simulado de 4 pontos
+        4  # Simulated spread of 4 points
     )
 
-    # Parâmetros da posição
+    # Position parameters
     symbol = "EURUSD"
-    initial_price = 1.12345  # Preço de abertura da posição
-    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Data/hora do candle
-    volume = 10.0  # Volume alto para gerar margem insuficiente
+    initial_price = 1.12345  # Opening price of the position
+    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Candle execution time
+    volume = 10.0  # High volume to generate insufficient margin
 
-    # Obtém o manipulador de operações a partir da conta de backtest
+    # Gets the operation handler from the backtest account
     operation_handler = account.backtest_account_data.operation
 
-    # Mock de candle para simulação
+    # Mock of candle for simulation
     mock_series_data = {
         "open": 1.12340,
         "high": 1.12360,
@@ -635,7 +635,7 @@ def test_backtest_open_position_insufficient_margin(account):
     mock_time_index = pd.to_datetime(position_time)
     mock_series = pd.Series(mock_series_data, name=mock_time_index)
 
-    # Define os dados do novo símbolo como um dicionário
+    # Defines the new symbol data as a dictionary
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -651,24 +651,25 @@ def test_backtest_open_position_insufficient_margin(account):
         "last_candle": mock_series,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Verificação de margem insuficiente
+    # Verifications of insufficient margin (accepts PT/EN)
     with pytest.raises(
-        InsufficientMarginError, match="Margem insuficiente para abrir posição"
+        InsufficientMarginError,
+        match=r"(Insufficient margin to open position)",
     ):
         __backtest_position_open(
             operation_class=operation_handler,
             symbol=symbol,
             order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,
-            volume=volume,  # Volume alto para gerar margem insuficiente
-            stop_price=1.12,  # Preço de stop-loss
-            profit_price=1.13,  # Preço de take-profit
-            comment="Teste de margem insuficiente",
+            volume=volume,  # High volume to generate insufficient margin
+            stop_price=1.12,  # Stop-loss price
+            profit_price=1.13,  # Take-profit price
+            comment="Test of insufficient margin",
         )

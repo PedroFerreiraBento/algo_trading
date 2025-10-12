@@ -1,45 +1,45 @@
-# **Nome do Ambiente**
-name: backtestenv  # Nome do ambiente Conda
+# **Name of the Environment**
+name: backtestenv  # Name of the Conda environment
 
-# **Canais para Download**
+# **Channels for Download**
 channels:
-  - conda-forge  # Canal "conda-forge" com pacotes atualizados e amplamente suportados.
-  - defaults  # Canal padrão do Conda.
+  - conda-forge  # Channel "conda-forge" with updated and widely supported packages.
+  - defaults  # Default Conda channel.
 
-# **Dependências do Ambiente**
+# **Dependencies of the Environment**
 dependencies:
-  # **Versão do Python**
-  - python=3.12.8  # Versão específica do Python (3.12.8) para compatibilidade com outras bibliotecas.
+  # **Python Version**
+  - python=3.12.8  # Specific Python version (3.12.8) for compatibility with other libraries.
 
-  # **Bibliotecas de Análise de Dados e Cálculos Numéricos**
-  - pandas=2.2.3  # Biblioteca para manipulação de dados estruturados (DataFrames).
-  - numpy=1.26.4  # Biblioteca para operações numéricas com arrays multidimensionais.
+  # **Data Analysis and Numerical Calculations Libraries**
+  - pandas=2.2.3  # Library for manipulating structured data (DataFrames).
+  - numpy=1.26.4  # Library for numerical operations with multi-dimensional arrays.
 
-  # **Acesso a Dados Financeiros**
-  - yfinance=0.2.28  # Biblioteca para acessar dados de mercado financeiro via Yahoo Finance.
+  # **Financial Data Access**
+  - yfinance=0.2.28  # Library for accessing financial market data via Yahoo Finance.
 
-  # **Bibliotecas de Armazenamento de Dados Avançadas**
-  - pyarrow=17.0.0  # Suporte a leitura e escrita de formatos Parquet e Arrow.
-  - tables=3.9.2  # Suporte ao formato de arquivo HDF5, útil para grandes conjuntos de dados.
+  # **Advanced Data Storage Libraries**
+  - pyarrow=17.0.0  # Support for reading and writing Parquet and Arrow formats.
+  - tables=3.9.2  # Support for the HDF5 file format, useful for large datasets.
 
-  # **Visualização de Dados**
-  - matplotlib=3.9.2  # Biblioteca para criação de gráficos e visualização de dados.
+  # **Data Visualization Libraries**
+  - matplotlib=3.9.2  # Library for creating graphs and data visualization.
 
-  # **Ambiente Interativo para Desenvolvimento**
-  - notebook=7.2.2  # Ambiente interativo Jupyter Notebook para escrever e executar código.
+  # **Interactive Development Environment**
+  - notebook=7.2.2  # Interactive Jupyter Notebook environment for writing and running code.
 
-  # **Framework de Testes Automatizados**
-  - pytest=7.4.4  # Biblioteca para criação de testes unitários automatizados.
+  # **Automated Testing Framework**
+  - pytest=7.4.4  # Library for creating automated unit tests.
 
-  # **Carregamento de Variáveis de Ambiente**
-  - python-dotenv=1.0.1  # Biblioteca para carregar variáveis de ambiente de arquivos `.env`.
+  # **Environment Variable Loading**
+  - python-dotenv=1.0.1  # Library for loading environment variables from `.env` files.
 
-  # **Suporte ao Instalador `pip`**
-  - pip  # Instalação do `pip` para gerenciar pacotes não disponíveis diretamente via `conda`.
+  # **Pip Installer Support**
+  - pip  # Installation of `pip` to manage packages not available directly via `conda`.
 
-  # **Dependências Instaladas via `pip`**
+  # **Pip-installed Dependencies**
   - pip:
       # **MetaTrader 5 API**
-      - MetaTrader5==5.0.4738  # Biblioteca oficial para conectar à plataforma MetaTrader 5.
-      # **Validação de Dados e Modelos**
-      - pydantic==2.12.0  # Biblioteca para validação de dados e definição de modelos baseados em Python.
+      - MetaTrader5==5.0.4738  # Official library for connecting to the MetaTrader 5 platform.
+      # **Data Validation and Model Definition**
+      - pydantic==2.12.0  # Library for data validation and definition of models based on Python.
