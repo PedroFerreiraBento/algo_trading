@@ -812,45 +812,36 @@ class MqlSymbolInfo(BaseFastModel):
     @classmethod
     def parse_symbol(cls, symbol: mt5.SymbolInfo) -> "MqlSymbolInfo":
         """Parse an mt5.SymbolInfo object to an MqlSymbolInfo instance."""
-        required_attrs = [
-            "time", "spread", "digits", "ask", "bid",
-            "volume_min", "volume_max", "volume_step", "volume_limit",
-            "trade_tick_size", "trade_contract_size",
-            "trade_tick_value_profit", "trade_tick_value_loss",
-            "currency_base", "currency_profit", "description", "name", 
-            "trade_calc_mode", "swap_mode", "swap_long", "swap_short", "swap_rollover3days"
-        ]
-
-        # Check if the object has the required attributes
-        if not all(hasattr(symbol, attr) for attr in required_attrs):
+        try:
+            dict_symbol = {
+                "time": datetime.fromtimestamp(symbol.time, tz=timezone.utc) if getattr(symbol, "time", None) else None,
+                "spread": getattr(symbol, "spread"),
+                "digits": getattr(symbol, "digits"),
+                "ask": getattr(symbol, "ask"),
+                "bid": getattr(symbol, "bid"),
+                "volume_limit": getattr(symbol, "volume_limit", 0),
+                "volume_min": getattr(symbol, "volume_min"),
+                "volume_max": getattr(symbol, "volume_max"),
+                "volume_step": getattr(symbol, "volume_step"),
+                "trade_calc_mode": getattr(symbol, "trade_calc_mode"),
+                "swap_mode": getattr(symbol, "swap_mode"),
+                "swap_long": getattr(symbol, "swap_long"),
+                "swap_short": getattr(symbol, "swap_short"),
+                "swap_rollover3days": getattr(symbol, "swap_rollover3days"),
+                "trade_tick_size": getattr(symbol, "trade_tick_size"),
+                "trade_contract_size": getattr(symbol, "trade_contract_size"),
+                "trade_tick_value_profit": getattr(symbol, "trade_tick_value_profit"),
+                "trade_tick_value_loss": getattr(symbol, "trade_tick_value_loss"),
+                "currency_base": getattr(symbol, "currency_base"),
+                "currency_profit": getattr(symbol, "currency_profit"),
+                "description": getattr(symbol, "description"),
+                "name": getattr(symbol, "name"),
+            }
+        except AttributeError:
+            # If any required attribute is missing, raise a clear parse error
             raise NotExpectedParseType(
                 f"{cls.__name__} expected an object with required attributes, got {type(symbol).__name__}"
             )
-
-        dict_symbol = {
-            "time": datetime.fromtimestamp(symbol.time, tz=timezone.utc) if symbol.time else None,
-            "spread": symbol.spread,
-            "digits": symbol.digits,
-            "ask": symbol.ask,
-            "bid": symbol.bid,
-            "volume_limit": symbol.volume_limit,
-            "volume_min": symbol.volume_min,
-            "volume_max": symbol.volume_max,
-            "volume_step": symbol.volume_step,
-            "trade_calc_mode": symbol.trade_calc_mode,
-            "swap_mode": symbol.swap_mode,
-            "swap_long": symbol.swap_long,
-            "swap_short": symbol.swap_short,
-            "swap_rollover3days": symbol.swap_rollover3days,
-            "trade_tick_size": symbol.trade_tick_size,
-            "trade_contract_size": symbol.trade_contract_size,
-            "trade_tick_value_profit": symbol.trade_tick_value_profit,
-            "trade_tick_value_loss": symbol.trade_tick_value_loss,
-            "currency_base": symbol.currency_base,
-            "currency_profit": symbol.currency_profit,
-            "description": symbol.description,
-            "name": symbol.name,
-        }
         
         return cls.model_validate(dict_symbol)
     
@@ -1462,10 +1453,10 @@ class MqlPositionInfo(BaseFastModel):
     external_id: Optional[str] = None
 
     def update(self, **kwargs):
-        """Atualiza os atributos do modelo após validação."""
-        # Valida os dados existentes com os novos usando model_validate
+        """Updates the model attributes after validation."""
+        # Validates the existing data with the new data using model_validate
         updated_data = self.model_validate(self.model_dump() | kwargs)
-        # Atualiza o dicionário interno com os dados validados
+        # Updates the internal dictionary with the validated data
         self.__dict__.update(updated_data.__dict__)
 
     @classmethod
@@ -1643,10 +1634,10 @@ class MqlTradeOrder(BaseFastModel):
     model_config = ConfigDict(validate_assignment=True)
 
     def update(self, **kwargs):
-        """Atualiza os atributos do modelo após validação."""
-        # Valida os dados existentes com os novos usando model_validate
+        """Updates the model attributes after validation."""
+        # Validates the existing data with the new data using model_validate
         updated_data = self.model_validate(self.model_dump() | kwargs)
-        # Atualiza o dicionário interno com os dados validados
+        # Updates the internal dictionary with the validated data
         self.__dict__.update(updated_data.__dict__)
 
     @classmethod
@@ -1735,19 +1726,19 @@ class MqlTradeOrder(BaseFastModel):
     
     @model_validator(mode="after")
     def __validate_expiration(cls, values):
-        # Acessa os atributos da instância
+        # Access the instance attributes
         time_expiration = getattr(values, "time_expiration", None)
         time_setup = getattr(values, "time_setup", None)
 
-        # Define time_expiration como None se for igual a 0
+        # Define time_expiration as None if it is equal to 0
         if time_expiration == 0:
             values.time_expiration = None
 
-        # Valida se time_setup existe
+        # Validate if time_setup exists
         if time_setup is None:
             raise ValueError("Invalid setup time: time_setup is required")
 
-        # Valida se time_expiration é maior que time_setup
+        # Validate if time_expiration is greater than time_setup
         if (
             values.time_expiration is not None
             and isinstance(values.time_expiration, datetime)
@@ -1755,7 +1746,7 @@ class MqlTradeOrder(BaseFastModel):
         ):
             raise ValueError("Invalid expiration time: time_expiration must be after time_setup")
 
-        # Retorna a instância corrigida
+        # Returns the corrected instance
         return values
 
     @model_validator(mode="after")
@@ -1771,7 +1762,7 @@ class MqlTradeOrder(BaseFastModel):
             price = getattr(values, "price_open", 0)
             order_type = getattr(values, "type", None)
 
-            # Valida os preços usando uma função externa
+            # Validate the prices using an external function
             validate_prices(
                 price=price, sl=sl, tp=tp, stoplimit=stoplimit, order_type=order_type
             )
@@ -1981,21 +1972,21 @@ class MqlTick(BaseFastModel):
 
 
 def _create_rates() -> "Rates":
-    """Cria uma instância de Rates para ser usada como valor padrão."""
-    from algo_trading.sources.MetaTrader5_source.rates import Rates  # Importação tardia
+    """Creates an instance of Rates to be used as default value."""
+    from algo_trading.sources.MetaTrader5_source.rates import Rates  # Late import
     return Rates
 
 
 def _rebuild_model(cls):
     """Decorator to call model_rebuild on the class after its definition."""
     if os.getenv('PYTEST_CURRENT_TEST') is None:
-        # Importação tardia para evitar erro de circular import
+        # Late import to avoid circular import error
         from algo_trading.sources.MetaTrader5_source.rates.rates import Rates
         
-        # Importação tardia para evitar erro de circular import
+        # Late import to avoid circular import error
         from algo_trading.sources.MetaTrader5_source.operation.operation import Operation
 
-        # Certifica-se de que `model_rebuild` seja chamado corretamente
+        # Ensures that `model_rebuild` is called correctly
         cls.model_rebuild()
         
     return cls
@@ -2084,8 +2075,8 @@ class MqlAccountInfo(BaseFastModel):
     backtest_last_swap_date: Optional[datetime] = None
         
     def update(self, **kwargs):
-        """Atualiza os atributos do modelo após validação."""
-        # Define o dicionário adicional
+        """Updates the model attributes after validation."""
+        # Define the additional dictionary
         dict_account = {
             "is_backtest_account": False,
             "orders": self.__get_updated_orders(),
@@ -2093,13 +2084,13 @@ class MqlAccountInfo(BaseFastModel):
             "history_deals": self.__get_updated_history_deals(),
         }
 
-        # Mescla kwargs com dict_account
+        # Merge kwargs with dict_account
         merged_kwargs = kwargs | dict_account
 
-        # Valida os dados existentes e mesclados
+        # Validate existing and merged data
         updated_data = self.model_validate(self.model_dump() | merged_kwargs)
 
-        # Atualiza os atributos do objeto com os dados validados
+        # Updates the object attributes with validated data
         self.__dict__.update(updated_data.__dict__)
         
     @classmethod
@@ -2253,7 +2244,7 @@ class MqlAccountInfo(BaseFastModel):
     
     @model_validator(mode="after")
     def __set_operation_class(self: "MqlAccountInfo") -> Self:
-        from algo_trading.sources.MetaTrader5_source.operation.operation import Operation  # Importação tardia
+        from algo_trading.sources.MetaTrader5_source.operation.operation import Operation  # Late import
         
         self.operation = Operation(account_data=self)
         

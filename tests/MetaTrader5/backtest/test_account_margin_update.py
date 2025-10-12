@@ -1,9 +1,9 @@
-# Importações de bibliotecas e dependências necessárias
+# Importations of libraries and dependencies
 import pytest
 from datetime import datetime, timezone
 import pandas as pd
 
-# Importações de classes, enums e funções do MetaTrader 5
+# Importations of classes, enums and functions of MetaTrader 5
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
     MqlAccountInfo,
     ENUM_ORDER_TYPE_MARKET,
@@ -25,16 +25,16 @@ from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
 from algo_trading.sources.MetaTrader5_source.account.account import Account
 
 
-# **Fixture de Conta para os Testes**
+# **Account fixture for tests**
 @pytest.fixture
 def account():
     """
-    Fixture que cria uma instância de conta para os testes.
-    Simula o login em uma conta ao vivo e reinicializa a conta em modo backtest.
+    Fixture that creates an account instance for testing.
+    Simulates login to a live account and reinitializes the account in backtest mode.
     """
     account = Account()
 
-    # Simula login na conta ao vivo antes do backtest
+    # Simulates login to a live account before backtesting
     account.live_account_data = MqlAccountInfo(
         login=123456,
         trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
@@ -69,24 +69,24 @@ def account():
     return account
 
 
-# **Teste 1: Atualização de Equity com Posição de Compra (`BUY`)**
+# **Test 1: Update of Equity with Buy Position**
 def test_update_equity_with_buy_position(account: Account):
     """
-    Testa a atualização do equity da conta com uma posição de compra aberta.
+    Tests the update of the equity of the account with an open buy position.
 
-    Objetivo:
-    - Verificar se o equity da conta é atualizado corretamente com base no saldo e lucro da posição.
-    - Considerar o `simulated_spread` e o `swap` na atualização do equity.
+    Objective:
+    - Ensure that the equity of the account is updated correctly based on the balance and profit of the position.
+    - Consider the `simulated_spread` and `swap` in the equity update.
     """
-    # **Inicializa a conta de backtest com saldo inicial e alavancagem configurados**
+    # **Initializes the backtest account with initial balance and leverage**
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
-    account.backtest_account_data.simulated_spread = 4  # Spread simulado de 4 pips
+    account.backtest_account_data.simulated_spread = 4  # Simulated spread of 4 pips
 
-    # **Configuração de parâmetros do mercado**
-    symbol = "EURUSD"  # Par de moedas
+    # **Market parameters configuration**
+    symbol = "EURUSD"  # Currency pair
     last_candle_time = datetime(2025, 1, 10, 12, 0, tzinfo=timezone.utc)
-    close_price = 1.14  # Preço de fechamento do último candle
+    close_price = 1.14  # Last candle closing price
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -105,20 +105,20 @@ def test_update_equity_with_buy_position(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # **Último candle de preço antes da atualização**
+    # **Last price candle before update**
     operation_handler.account_data.backtest_last_swap_date = (
-        last_candle_time  # Data do último swap
+        last_candle_time  # Last swap date
     )
 
-    # **Abertura de uma posição de compra (BUY)**
+    # **Opening a buy position**
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -127,55 +127,55 @@ def test_update_equity_with_buy_position(account: Account):
         comment="Position 1 (Buy)",
     )
 
-    # **Atualiza o último candle com um novo horário e o mesmo preço para aplicar o swap**
+    # **Updates the last price candle with a new time and the same price to apply the swap**
     last_candle_time = datetime(
         2025, 1, 10, 23, 0, tzinfo=timezone.utc
-    )  # Sexta-feira, 23h
+    )  # Friday, 23h
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.12, "high": 1.15, "low": 1.11, "close": close_price},
         name=last_candle_time,
     )
 
-    # **Atualização do swap, lucro e equity**
+    # **Swap, profit and equity update**
     __backtest_position_apply_swap_to_positions(operation_handler)
     __backtest_position_update_price_and_profit(operation_handler)
     __backtest_account_update_equity(operation_handler)
 
-    # **Equity calculado**
+    # **Calculated equity**
     account_equity = account.backtest_account_data.equity
 
-    # **Cálculo esperado**
-    position = account.backtest_account_data.positions[0]  # Posição de compra aberta
+    # **Expected equity calculation**
+    position = account.backtest_account_data.positions[0]  # Open buy position
     expected_equity = (
         account.backtest_account_data.balance + position.profit + position.swap
-    )  # Equity esperado
+    )  # Expected equity
 
-    # **Verificação do equity**
+    # **Verification of equity**
     assert (
         account_equity == expected_equity
-    ), f"Equity incorreto. Esperado: {expected_equity}, obtido: {account_equity}"
+    ), f"Equity incorrect. Expected: {expected_equity}, obtained: {account_equity}"
 
 
-# **Teste 2: Atualização de Margem com Posição de Venda (`SELL`)**
+# **Test 2: Update of Margin with Sell Position**
 def test_update_account_margin_with_sell_position(account: Account):
     """
-    Testa a atualização de margem com uma posição de venda (`SELL`) aberta.
+    Tests the update of margin with an open sell position.
 
-    Objetivo:
-    - Verificar se a margem utilizada, margem livre e nível de margem são calculados corretamente com base no preço e alavancagem.
+    Objective:
+    - Verify if the used margin, free margin and margin level are calculated correctly based on the price and leverage.
     """
-    # **Inicializa a conta de backtest com saldo inicial e alavancagem configurados**
+    # **Initializes the backtest account with initial balance and leverage**
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
-    account.backtest_account_data.simulated_spread = 4  # Spread simulado de 4 pips
+    account.backtest_account_data.simulated_spread = 4  # Simulated spread of 4 pips
 
-    # **Configuração de parâmetros do mercado**
-    symbol = "EURUSD"  # Par de moedas
-    contract_size = 100_000  # 1 lote = 100.000 unidades da moeda base
+    # **Market parameters configuration**
+    symbol = "EURUSD"  # Currency pair
+    contract_size = 100_000  # 1 lote = 100.000 units of the base currency
 
-    # **Último candle de preço**
+    # **Last price candle before update**
     last_candle_time = datetime(2025, 1, 10, 12, 0, tzinfo=timezone.utc)
-    close_price = 1.12  # Preço de fechamento do último candle
+    close_price = 1.12  # Last candle closing price
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -194,28 +194,28 @@ def test_update_account_margin_with_sell_position(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
     operation_handler.account_data.backtest_last_swap_date = (
-        last_candle_time  # Data do último swap
+        last_candle_time  # Last swap date
     )
 
-    # **Abertura de uma posição de venda (SELL)**
+    # **Opening a sell position**
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Tipo de ordem: venda
-        volume=1,  # Volume da posição (1 lote)
-        comment="Position 2 (Sell)",  # Comentário identificando a posição
+        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Order type: sell
+        volume=1,  # Position volume (1 lot)
+        comment="Position 2 (Sell)",  # Comment identifying the position
     )
 
-    # **Atualiza o último candle com um novo horário e o mesmo preço para aplicar o swap**
+    # **Updates the last price candle with a new time and the same price to apply the swap**
     last_candle_time = datetime(
         2025, 1, 10, 23, 0, tzinfo=timezone.utc
     )  # Sexta-feira, 23h
@@ -225,123 +225,123 @@ def test_update_account_margin_with_sell_position(account: Account):
         name=last_candle_time,
     )
 
-    # **Atualização de margem**
+    # **Margin update**
     __backtest_position_apply_swap_to_positions(
         operation_class=operation_handler
-    )  # Calcula e atualiza margem utilizada, margem livre e nível de margem
+    )  # Calculates and updates used margin, free margin and margin level
     __backtest_position_update_price_and_profit(
         operation_class=operation_handler
-    )  # Calcula e atualiza margem utilizada, margem livre e nível de margem
+    )  # Calculates and updates used margin, free margin and margin level
     __backtest_account_update_margin(
         operation_class=operation_handler
-    )  # Calcula e atualiza margem utilizada, margem livre e nível de margem
-    margin_used = account.backtest_account_data.margin  # Margem total utilizada
+    )  # Calculates and updates used margin, free margin and margin level
+    margin_used = account.backtest_account_data.margin  # Total used margin
     margin_free = (
         account.backtest_account_data.margin_free
-    )  # Margem livre (equity - margem usada)
-    margin_level = account.backtest_account_data.margin_level  # Nível de margem (%)
+    )  # Free margin (equity - used margin)
+    margin_level = account.backtest_account_data.margin_level  # Margin level (%)
 
-    # **Cálculos esperados**
+    # **Expected calculations**
     expected_margin = round(
         (contract_size * close_price) / account.backtest_account_data.leverage, 2
-    )  # Margem usada
+    )  # Used margin
     expected_margin_free = round(
         account.backtest_account_data.equity - expected_margin, 2
-    )  # Margem livre
+    )  # Free margin (equity - used margin)
     expected_margin_level = round(
         (account.backtest_account_data.equity / expected_margin) * 100, 3
-    )  # Nível de margem (%)
+    )  # Margin level (%)
 
-    # **Verificações**
+    # **Verifications**
     assert (
         margin_used == expected_margin
-    ), f"Margem usada incorreta. Esperado: {expected_margin}, obtido: {margin_used}"
+    ), f"Used margin incorrect. Expected: {expected_margin}, obtained: {margin_used}"
     assert (
         margin_free == expected_margin_free
-    ), f"Margem livre incorreta. Esperado: {expected_margin_free}, obtido: {margin_free}"
+    ), f"Free margin incorrect. Expected: {expected_margin_free}, obtained: {margin_free}"
     assert (
         margin_level == expected_margin_level
-    ), f"Nível de margem incorreto. Esperado: {expected_margin_level}%, obtido: {margin_level}%"
+    ), f"Margin level incorrect. Expected: {expected_margin_level}%, obtained: {margin_level}%"
 
 
-# **Teste 3: Atualização de Equity com Lucro Zero**
+# **Test 3: Update of Equity with Zero Profit**
 def test_update_equity_with_zero_profit(account: Account):
     """
-    Testa a atualização do equity com lucro zero (sem posições abertas).
+    Tests the update of equity with zero profit (no open positions).
     """
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
 
-    # Atualização do equity sem posições abertas
+    # **Equity update without open positions**
     __backtest_account_update_equity(operation_handler)
     equity = account.backtest_account_data.equity
 
-    # O equity deve ser igual ao saldo quando não há lucro/prejuízo
+    # Equity should be equal to balance when there is no profit/loss
     expected_equity = 10000.0
     assert (
         equity == expected_equity
-    ), f"Equity incorreto com lucro zero. Esperado: {expected_equity}, obtido: {equity}"
+    ), f"Equity incorrect with zero profit. Expected: {expected_equity}, obtained: {equity}"
 
 
-# **Teste 4: Atualização de Margem com Nenhuma Posição Aberta**
+# **Test 4: Update of Margin with No Open Positions**
 def test_update_account_margin_with_no_positions(account: Account):
     """
-    Testa a atualização de margem quando não há posições abertas.
+    Tests the update of margin when there are no open positions.
     """
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
 
-    # Atualização de margem sem posições abertas
+    # **Margin update without open positions**
     __backtest_account_update_margin(operation_handler)
 
     margin_used = account.backtest_account_data.margin
     margin_free = account.backtest_account_data.margin_free
     margin_level = account.backtest_account_data.margin_level
 
-    # Com nenhuma posição aberta, margem usada deve ser zero
+    # **When there are no open positions, used margin should be zero**
     assert (
         margin_used == 0.0
-    ), f"Margem usada incorreta. Esperado: 0.0, obtido: {margin_used}"
+    ), f"Used margin incorrect. Expected: 0.0, obtained: {margin_used}"
     assert (
         margin_free == 10000.0
-    ), f"Margem livre incorreta. Esperado: 10000.0, obtido: {margin_free}"
+    ), f"Free margin incorrect. Expected: 10000.0, obtained: {margin_free}"
     assert margin_level == float(
         "inf"
-    ), f"Nível de margem incorreto. Esperado: infinito, obtido: {margin_level}"
+    ), f"Margin level incorrect. Expected: infinite, obtained: {margin_level}"
 
 
-# **Teste 5: Verificação de Margin Call (`__check_margin_call`)**
+# **Test 5: Verification of Margin Call (`__check_margin_call`)**
 def test_check_margin_call(account: Account, caplog):
     """
-    Testa a verificação de margin call com base no nível de margem e modo de stopout configurado.
+    Tests the verification of margin call based on the margin level and stopout mode configured.
 
-    Objetivo:
-    - Verificar se um aviso de `margin call` é emitido corretamente quando o nível de margem cai abaixo do limite configurado (`margin_so_call`).
-    - Testar diferentes modos de stopout (`percent` e `money`) e validar os alertas de margem.
-    - Garantir que o nível de margem calculado seja exatamente igual ao nível desejado.
+    Objective:
+    - Verify if a `margin call` warning is emitted correctly when the margin level falls below the configured limit (`margin_so_call`).
+    - Test different stopout modes (`percent` and `money`) and validate margin warnings.
+    - Ensure that the calculated margin level is exactly equal to the desired level.
     """
-    # **Inicializa a conta de backtest com saldo inicial e alavancagem configurados**
+    # **Initializes the backtest account with initial balance and leverage**
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
-    account.backtest_account_data.simulated_spread = 4  # Spread simulado de 4 pips
+    account.backtest_account_data.simulated_spread = 4  # Simulated spread of 4 pips
 
-    # **Configuração de parâmetros de margem e stopout**
+    # **Margin and stopout parameters configuration**
     account.backtest_account_data.margin_so_mode = (
         ENUM_ACCOUNT_STOPOUT_MODE.ACCOUNT_STOPOUT_MODE_PERCENT
-    )  # Stopout por porcentagem
+    )  # Stopout by percentage
     account.backtest_account_data.margin_so_call = (
-        50.0  # Nível de margem mínimo permitido (%)
+        50.0  # Minimum allowed margin level (%)
     )
 
-    # **Configuração de parâmetros do mercado**
-    symbol = "EURUSD"  # Par de moedas
-    contract_size = 100_000  # 1 lote = 100.000 unidades da moeda base
-    tick_size = 0.00001  # Precisão do preço (1 pip = 0.00001)
-    volume = 1  # Volume da posição (1 lote)
+    # **Market parameters configuration**
+    symbol = "EURUSD"  # Currency pair
+    contract_size = 100_000  # 1 lot = 100.000 units of the base currency
+    tick_size = 0.00001  # Price precision (1 pip = 0.00001)
+    volume = 1  # Position volume (1 lot)
 
-    # **Último candle de preço antes da posição**
+    # **Last price candle before position**
     last_candle_time = datetime(2025, 1, 10, 12, 0, tzinfo=timezone.utc)
-    close_price = 1.12  # Preço de fechamento do candle
+    close_price = 1.12  # Closing price of the candle
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -360,35 +360,35 @@ def test_check_margin_call(account: Account, caplog):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # **Creating a new DataFrame for the new record with the same format as the existing DataFrame**
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # **Concatenating the new record to the existing DataFrame**
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # **Abertura de uma posição de venda (`SELL`)**
+    # **Opening a sell position**
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Tipo de ordem: venda
-        volume=volume,  # Volume de 1 lote
-        comment="Position 1 (Sell)",  # Comentário identificando a posição
+        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_SELL,  # Order type: sell
+        volume=volume,  # Position volume (1 lot)
+        comment="Position 1 (Sell)",  # Comment identifying the position
     )
 
-    # **Simulação de um novo preço para provocar um cenário de margin call**
+    # **Simulation of a new price to trigger a margin call scenario**
     desired_level = (
-        40.0  # Nível de margem desejado para simular o alerta de margin call (40%)
+        40.0  # Desired margin level to simulate the margin call alert (40%)
     )
     margin_used = (
         close_price * contract_size * volume
-    ) / account.backtest_account_data.leverage  # Margem usada
+    ) / account.backtest_account_data.leverage  # Used margin
     spread = (
         account.backtest_account_data.simulated_spread * tick_size
-    )  # Valor do spread em pontos
+    )  # Spread value in points
 
-    # **Cálculo do próximo preço de fechamento para atingir o nível de margem desejado**
+    # **Calculation of the next closing price to reach the desired margin level**
     next_price = round(
         ((desired_level * margin_used) / 100 - account.backtest_account_data.balance)
         / (-contract_size * volume)
@@ -397,77 +397,76 @@ def test_check_margin_call(account: Account, caplog):
         5,
     )
 
-    # **Atualização do último candle com o novo preço de fechamento**
+    # **Updating the last candle with the new closing price**
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.10, "high": 1.13, "low": 1.08, "close": next_price},
         name=last_candle_time,
     )
 
-    # **Atualização de margem e cálculo de lucro**
+    # **Margin and profit calculation update**
     __backtest_position_apply_swap_to_positions(
         operation_handler
-    )  # Aplica o swap às posições abertas
+    )  # Applies swap to open positions
     __backtest_position_update_price_and_profit(
         operation_handler
-    )  # Atualiza o lucro/prejuízo com base no último preço
+    )  # Updates profit/loss based on the last price
     __backtest_account_update_margin(
         operation_handler
-    )  # Atualiza a margem usada, margem livre e nível de margem
+    )  # Updates used margin, free margin and margin level
 
-    # **Captura os logs de nível `WARNING` para verificar mensagens de aviso**
+    # **Capture logs of level `WARNING` to verify warning messages**
     with caplog.at_level("WARNING"):
         __backtest_account_check_margin_call(
             operation_handler
-        )  # Verifica se um alerta de margin call é emitido
+        )  # Verify if a margin call alert is emitted
 
-    # **Cálculo esperado do nível de margem**
+    # **Expected margin level calculation**
     expected_margin_level = (
         operation_handler.account_data.margin_level
-    )  # Nível de margem atual
+    )  # Current margin level
 
-    # **Verificação do nível de margem e margem call**
+    # **Verification of margin level and margin call**
     assert (
         round(expected_margin_level, 3) == desired_level
-    ), f"Nível de margem não está no nível esperado. Esperado: {desired_level}%, obtido: {expected_margin_level:.2f}%"
-    assert "[MARGIN CALL]" in caplog.text, "Aviso de margin call não foi registrado."
+    ), f"Margin level is not at the expected level. Expected: {desired_level}%, obtained: {expected_margin_level:.2f}%"
+    assert "[MARGIN CALL]" in caplog.text, "Margin call alert was not registered."
     assert (
-        f"[MARGIN CALL] Nível de margem abaixo do limite ({expected_margin_level:.2f}%)."
+        f"[MARGIN CALL] Margin level below the limit ({expected_margin_level:.2f}%)."
         in caplog.text
-    ), "Mensagem de alerta incorreta."
+    ), "Alert message is incorrect."
 
 
-# **Teste 6: Processamento de Stop Out (`__process_stop_out`)**
+# **Test 6: Stop Out Processing (`__process_stop_out`)**
 def test_process_stop_out(account: Account, caplog):
     """
-    Testa o processamento de stop out, verificando o fechamento de posições quando o nível de margem
-    cai abaixo do limite permitido.
+    Tests the stop out processing, verifying the closing of positions when the margin level falls below the allowed limit.
 
-    Objetivo:
-    - Verificar se as posições são fechadas corretamente em ordem FIFO ou pela maior perda, dependendo do `fifo_close`.
-    - Validar os logs de alerta e o nível de margem após o processo de stop out.
-    - Certificar-se de que múltiplos logs de stop out sejam gerados corretamente.
+    Objective:
+    - Verify if positions are closed correctly in FIFO order or by the largest loss, depending on `fifo_close`.
+    - Validate alert logs and margin level after the stop out process.
+    - Verify that multiple stop out logs are generated correctly.
     """
-    # **Inicialização da conta de backtest**
+    # **Initializes the backtest account with initial balance and leverage**
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
-    account.backtest_account_data.simulated_spread = 4  # Spread simulado de 4 pips
+    account.backtest_account_data.simulated_spread = 4  # Simulated spread of 4 pips
 
-    # **Configuração de parâmetros de stop out**
+    # **Stop out parameters configuration**
     account.backtest_account_data.margin_so_mode = (
         ENUM_ACCOUNT_STOPOUT_MODE.ACCOUNT_STOPOUT_MODE_PERCENT
-    )  # Stop out baseado em percentual
-    account.backtest_account_data.margin_so_call = 50.0  # Chamada de margem: 50%
-    account.backtest_account_data.margin_so_so = 20.0  # Stop out efetivo: 20%
-    account.backtest_account_data.fifo_close = False  # Fecha posições pela maior perda
+    )  # Stop out by percentage
+    account.backtest_account_data.margin_so_call = 50.0  # Margin call: 50%
+    account.backtest_account_data.margin_so_so = 20.0  # Stop out: 20%
+    account.backtest_account_data.fifo_close = False  # Close positions by largest loss
 
-    # **Configuração de parâmetros do mercado**
+    # **Market parameters configuration**
     symbol = "EURUSD"
-    contract_size = 100_000  # 1 lote = 100.000 unidades
-    tick_size = 0.00001  # Precisão do preço (1 pip = 0.00001)
+    contract_size = 100_000  # 1 lot = 100.000 units of the base currency
+    tick_size = 0.00001  # Price precision (1 pip = 0.00001)
 
-    # **Criação do último candle de preço**
+    # **Creation of the last price candle**
     last_candle_time = datetime(2025, 1, 10, 12, 0, tzinfo=timezone.utc)
-    close_price = 1.12  # Preço de fechamento
+    close_price = 1.12  # Closing price
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -486,17 +485,17 @@ def test_process_stop_out(account: Account, caplog):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # **Creating a new DataFrame for the new record with the same format as the existing DataFrame**
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # **Concatenating the new record to the existing DataFrame**
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # **Abertura de múltiplas posições**
-    sell_volume = 2  # 2 lotes na posição SELL
-    buy_volume = 1  # 1 lote na posição BUY
+    # **Opening multiple positions**
+    sell_volume = 2  # 2 lots in the SELL position
+    buy_volume = 1  # 1 lot in the BUY position
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -512,8 +511,8 @@ def test_process_stop_out(account: Account, caplog):
         comment="Position 2 (Sell)",
     )
 
-    # **Simulação de preço crítico para provocar o stop out**
-    desired_level = 10  # Nível de margem crítico (10%)
+    # **Simulation of critical price to trigger stop out**
+    desired_level = 10  # Critical margin level (10%)
     balance = account.backtest_account_data.balance
     spread = account.backtest_account_data.simulated_spread * tick_size
     margin_used_sell = (
@@ -538,72 +537,72 @@ def test_process_stop_out(account: Account, caplog):
         name=last_candle_time,
     )
 
-    # **Atualização de lucro, margem e verificação do stop out**
+    # **Profit, margin and stop out verification**
     __backtest_position_apply_swap_to_positions(
         operation_handler
-    )  # Aplica o swap às posições abertas
+    )  # Applies swap to open positions
     __backtest_position_update_price_and_profit(
         operation_handler
-    )  # Atualiza o lucro das posições abertas
+    )  # Updates profit of open positions
     __backtest_account_update_margin(
         operation_handler
-    )  # Atualiza a margem utilizada, margem livre e nível de margem
+    )  # Updates used margin, free margin and margin level
 
-    # **Captura os logs para verificar mensagens de alerta e eventos de stop out**
+    # **Capture logs to verify alert messages and stop out events**
     with caplog.at_level("INFO"):
         __backtest_account_process_stop_out(operation_handler)
 
-    # **Verificações de logs e status após stop out**
+    # **Log verification and status after stop out**
     stop_out_logs = [
         record.message for record in caplog.records if "[STOP OUT]" in record.message
     ]
     final_logs = [
         record.message
         for record in caplog.records
-        if "[STOP OUT FINALIZADO]" in record.message
+        if "[STOP OUT FINISHED]" in record.message
     ]
 
-    # **Verificações principais**
-    assert len(stop_out_logs) > 0, "Nenhum aviso de stop out foi registrado."
+    # **Main verifications**
+    assert len(stop_out_logs) > 0, "No stop out alert was registered."
     assert (
         len(final_logs) == 1
-    ), "O log final de stop out não foi registrado corretamente."
+    ), "The final stop out log was not registered correctly."
     assert (
         account.backtest_account_data.margin_level
         > account.backtest_account_data.margin_so_so
-    ), "O nível de margem não foi restaurado após o stop out."
+    ), "The margin level was not restored after the stop out."
     assert (
         account.backtest_account_data.margin_level == 30
-    ), "O nível de margem restaurado não é o esperado (30%)."
+    ), "The restored margin level is not as expected (30%)."
     assert (
         len(account.backtest_account_data.positions) == 1
-    ), "Nem todas as posições foram fechadas corretamente durante o stop out."
+    ), "Not all positions were closed correctly during the stop out."
 
-    # **Verificações de valores atualizados da conta**
+    # **Account value updates verification**
     assert (
         account.backtest_account_data.equity == 336.01
-    ), "Equity atualizado incorreto."
+    ), "Equity updated incorrectly."
     assert (
         account.backtest_account_data.profit == 9648.0
-    ), "Profit atualizado incorreto."
+    ), "Profit updated incorrectly."
     assert (
         account.backtest_account_data.balance == -9311.99
-    ), "Balance atualizado incorreto."
+    ), "Balance updated incorrectly."
     assert (
         account.backtest_account_data.margin == 1120.04
-    ), "Margem utilizada incorreta."
+    ), "Used margin updated incorrectly."
     assert (
         account.backtest_account_data.margin_free == -784.03
-    ), "Margem livre atualizada incorreta."
+    ), "Free margin updated incorrectly."
 
-    # **Verificação das mensagens de stop out**
+    # **Stop out message verification**
     assert (
-        "Nível de margem atingido! Iniciando fechamento das posições..."
+        "Margin level reached! Starting position closing..."
         in stop_out_logs[0]
-    ), "Mensagem inicial de stop out incorreta."
+    ), "Initial stop out alert message is incorrect."
     assert (
-        "Nível de margem restaurado após fechamento das posições." in caplog.text
-    ), "Mensagem de restauração de margem após stop out não foi registrada."
+        "Margin level restored after position closing." in caplog.text
+    ), "Margin restoration after stop out alert message was not registered."
     assert (
-        "Saldo" in final_logs[0] and "Equity" in final_logs[0]
-    ), "Log final de stop out não contém informações de saldo e equity."
+        "Balance" in final_logs[0] and "Equity" in final_logs[0]
+    ), "Final stop out log does not contain balance and equity information."

@@ -1,56 +1,56 @@
-# **Bibliotecas de Testes**
-import pytest  # Biblioteca para criação e execução de testes unitários.
+# **Test Libraries**
+import pytest  # Library for creating and executing unit tests.
 
-# **Bibliotecas de Datas e Horários**
+# **Date and Time Libraries**
 from datetime import (
     datetime,
     timezone,
     timedelta,
-)  # Utilizadas para definir timestamps com fuso horário UTC e manipulação de datas/horas.
+)  # Used to define timestamps with UTC timezone and date/time manipulation.
 
-# **Modelos e Enums do MetaTrader5**
+# **MetaTrader5 Models and Enums**
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    MqlAccountInfo,  # Modelo que contém informações da conta de trading (e.g., saldo, margem, nome da conta).
-    ENUM_ACCOUNT_TRADE_MODE,  # Enum que define o modo de operação da conta (e.g., demo, real).
-    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum para o modo de stop-out (e.g., percentual ou valor fixo).
-    ENUM_ACCOUNT_MARGIN_MODE,  # Enum para definir o tipo de margem da conta (e.g., hedge, netting).
-    ENUM_ORDER_TYPE_MARKET,  # Enum que define os tipos de ordens a mercado (e.g., BUY/SELL).
+    MqlAccountInfo,  # Model containing trading account information (e.g., balance, margin, account name).
+    ENUM_ACCOUNT_TRADE_MODE,  # Enum defining the trading account mode (e.g., demo, real).
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum defining the stop-out mode (e.g., percent or fixed value).
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum defining the type of margin of the account (e.g., hedge, netting).
+    ENUM_ORDER_TYPE_MARKET,  # Enum that defines the types of market orders (e.g., BUY/SELL).
     ENUM_SYMBOL_CALC_MODE,
     ENUM_SYMBOL_SWAP_MODE,
 )
 
-# **Funções de Backtest**
+# **Backtest Functions**
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __backtest_position_open,  # Função que simula a abertura de posições em modo de backtest.
-    __backtest_position_modify,  # Função que simula a modificação de posições em modo de backtest.
+    __backtest_position_open,  # Function that simulates opening positions in backtest mode.
+    __backtest_position_modify,  # Function that simulates modifying positions in backtest mode.
 )
 
-# **Exceções Personalizadas**
+# **Custom Exceptions**
 from algo_trading.sources.MetaTrader5_source.utils.exceptions import (
     CouldNotSelectPosition,
-)  # Exceção personalizada levantada quando não é possível selecionar uma posição.
+)  # Custom exception raised when a position cannot be selected.
 
-# **Classe de Conta**
+# **Account Class**
 from algo_trading.sources.MetaTrader5_source.account.account import (
     Account,
-)  # Classe `Account` utilizada para login e gerenciamento das informações de conta de trading.
+)  # Account class used for login and management of trading account information.
 
-# **Biblioteca de Manipulação de Dados**
-import pandas as pd  # Biblioteca utilizada para criar e manipular objetos `Series` que simulam candles de mercado.
+# **Data Manipulation Library**
+import pandas as pd  # Library used to create and manipulate `Series` objects that simulate market candles.
 
 
 @pytest.fixture
 def account():
-    """Fixture que cria uma instância de conta para os testes.
+    """Fixture that creates an account instance for tests.
 
-    Simula o login em uma conta ao vivo.
+    Simulates login to a live account before backtest.
 
     Returns:
-        Account: Instância de conta com dados configurados.
+        Account: Instance of account with configured data.
     """
     account = Account()
 
-    # Simula login na conta ao vivo antes do backtest
+    # Simulates login to a live account before backtest
     account.live_account_data = MqlAccountInfo(
         login=123456,
         trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
@@ -87,47 +87,47 @@ def account():
 
 def test_backtest_modify_position_single_position(account: Account):
     """
-    Testa a função `__backtest_modify_position` quando existe apenas uma posição aberta.
+    Tests the `__backtest_modify_position` function when there is only one open position.
 
-    Verifica:
-    1. Se a posição é selecionada automaticamente quando não é passado um `ticket`.
-    2. Se os atributos `stop_price`, `profit_price` e `comment` são modificados corretamente.
+    Verifies:
+    1. If the position is automatically selected when no `ticket` is passed.
+    2. If the attributes `stop_price`, `profit_price` and `comment` are modified correctly.
 
     Args:
-        account (Account): Fixture que fornece uma conta de backtest pré-configurada.
+        account (Account): Fixture that provides a backtest account pre-configured.
     """
-    # **Configuração da Conta de Backtest**
+    # **Backtest Account Configuration**
     account.login_backtest(
         balance=5000, leverage=100
-    )  # Inicia a conta com saldo de $5.000 e alavancagem 1:100.
+    )  # Starts the account with a balance of $5.000 and leverage 1:100.
     account.backtest_account_data.magic_number = (
-        654321  # Define o magic number da conta para identificar operações.
+        654321  # Defines the magic number of the account to identify operations.
     )
 
-    # **Configuração da Posição Inicial**
-    symbol = "EURUSD"  # Par de moedas negociado.
-    initial_volume = 1.0  # Volume inicial da posição (1 lote = 100.000 unidades).
-    initial_price = 1.12345  # Preço de abertura da posição.
-    initial_stop_price = 1.1200  # Preço de stop-loss.
-    initial_profit_price = 1.1300  # Preço de take-profit.
-    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Data/hora do candle.
+    # **Initial Position Configuration**
+    symbol = "EURUSD"  # Currency pair being traded.
+    initial_volume = 1.0  # Initial position volume (1 lot = 100,000 units).
+    initial_price = 1.12345  # Initial position opening price.
+    initial_stop_price = 1.1200  # Stop-loss price.
+    initial_profit_price = 1.1300  # Take-profit price.
+    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Candle time.
 
-    # **Mock de Candle para Simulação de Mercado**
+    # **Mock Candle for Market Simulation**
     mock_series_data = {
         "open": 1.12340,
         "high": 1.12360,
         "low": 1.12320,
         "close": initial_price,
-        "tick_volume": 100,  # Volume de ticks para simular liquidez.
+        "tick_volume": 100,  # Volume of ticks to simulate liquidity.
     }
     mock_time_index = pd.to_datetime(position_time)
     mock_series = pd.Series(mock_series_data, name=mock_time_index)
 
-    # Define o último candle para o par de moedas.
+    # Define the last candle for the currency pair.
     operation_handler = (
         account.backtest_account_data.operation
-    )  # Obtém o manipulador de operações.
-    # Define os dados do novo símbolo como um dicionário
+    )  # Gets the operation handler.
+    # Define the new symbol data as a dictionary
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -143,32 +143,32 @@ def test_backtest_modify_position_single_position(account: Account):
         "last_candle": mock_series,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # **Abertura da Posição Inicial**
+    # **Initial Position Opening**
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Ordem de compra a mercado.
+        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Market buy order.
         volume=initial_volume,
         stop_price=initial_stop_price,
         profit_price=initial_profit_price,
-        comment="Initial position",  # Comentário inicial.
+        comment="Initial position",  # Initial position comment.
     )
-    position = account.backtest_account_data.positions[0]  # Obtém a posição aberta.
+    position = account.backtest_account_data.positions[0]  # Gets the opened position.
 
-    # **Parâmetros de Modificação**
-    new_stop_price = 1.1180  # Novo preço de stop-loss.
-    new_profit_price = 1.1350  # Novo preço de take-profit.
-    new_comment = "Modified position"  # Novo comentário.
+    # **Modification Parameters**
+    new_stop_price = 1.1180  # New stop-loss price.
+    new_profit_price = 1.1350  # New take-profit price.
+    new_comment = "Modified position"  # New comment.
 
-    # **Modificação da Posição**
+    # **Position Modification**
     __backtest_position_modify(
         operation_class=operation_handler,
         stop_price=new_stop_price,
@@ -176,51 +176,51 @@ def test_backtest_modify_position_single_position(account: Account):
         comment=new_comment,
     )
 
-    # **Verificações**
-    assert position.sl == new_stop_price, "O stop-loss não foi atualizado corretamente."
+    # **Verifications**
+    assert position.sl == new_stop_price, "The stop-loss was not updated correctly."
     assert (
         position.tp == new_profit_price
-    ), "O take-profit não foi atualizado corretamente."
+    ), "The take-profit was not updated correctly."
     assert (
         position.comment == new_comment
-    ), "O comentário não foi atualizado corretamente."
+    ), "The comment was not updated correctly."
 
 
 def test_backtest_modify_position_no_position_found(account: Account):
     """
-    Testa a função `__backtest_modify_position` quando não há posições abertas ou
-    quando o `ticket` fornecido não corresponde a nenhuma posição.
+    Tests the `__backtest_modify_position` function when there are no open positions or
+    when the provided `ticket` does not correspond to any position.
 
-    Verifica:
-    1. Se uma exceção `CouldNotSelectPosition` é levantada quando não há posições.
-    2. Se uma exceção é levantada quando o `ticket` fornecido é inválido.
+    Verifies:
+    1. If an exception `CouldNotSelectPosition` is raised when there are no positions.
+    2. If an exception is raised when the provided `ticket` is invalid.
 
     Args:
-        account (Account): Fixture que fornece uma conta de backtest pré-configurada.
+        account (Account): Fixture that provides a backtest account pre-configured.
     """
-    # **Configuração da Conta de Backtest**
+    # **Backtest Account Configuration**
     account.login_backtest(
         balance=5000, leverage=100
-    )  # Inicia a conta com saldo de $5.000 e alavancagem 1:100.
+    )  # Starts the account with a balance of $5.000 and leverage 1:100.
     operation_handler = (
         account.backtest_account_data.operation
-    )  # Manipulador de operações.
-    symbol = "EURUSD"  # Par de moedas negociado.
-    initial_price = 1.12345  # Preço de abertura da posição.
-    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Data/hora do candle.
+    )  # Gets the operation handler.
+    symbol = "EURUSD"  # Currency pair being traded.
+    initial_price = 1.12345  # Initial position opening price.
+    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Candle time.
 
-    # **Mock de Candle para Simulação de Mercado**
+    # **Mock Candle for Market Simulation**
     mock_series_data = {
         "open": 1.12340,
         "high": 1.12360,
         "low": 1.12320,
         "close": initial_price,
-        "tick_volume": 100,  # Volume de ticks para simular liquidez.
+        "tick_volume": 100,  # Volume of ticks to simulate liquidity.
     }
     mock_time_index = pd.to_datetime(position_time)
     mock_series = pd.Series(mock_series_data, name=mock_time_index)
 
-    # Define os dados do novo símbolo como um dicionário
+    # Define the new symbol data as a dictionary
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -236,15 +236,15 @@ def test_backtest_modify_position_no_position_found(account: Account):
         "last_candle": mock_series,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # **Teste: Nenhuma posição aberta**
+    # **Test: No open position**
     with pytest.raises(CouldNotSelectPosition, match="Could not select the position"):
         __backtest_position_modify(
             operation_class=operation_handler,
@@ -253,7 +253,7 @@ def test_backtest_modify_position_no_position_found(account: Account):
             comment="Attempt to modify non-existent position",
         )
 
-    # **Abertura de uma posição**
+    # **Initial Position Opening**
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -264,11 +264,11 @@ def test_backtest_modify_position_no_position_found(account: Account):
         comment="Position 1",
     )
 
-    # **Teste: `ticket` incorreto**
+    # **Test: Wrong ticket**
     with pytest.raises(CouldNotSelectPosition, match=r"Could not select the position"):
         __backtest_position_modify(
             operation_class=operation_handler,
-            position=999999,  # `Ticket` inválido (não corresponde a nenhuma posição).
+            position=999999,  # Invalid ticket (does not correspond to any position).
             stop_price=1.1190,
             profit_price=1.1380,
             comment="Attempt to modify with wrong ticket",
@@ -277,39 +277,39 @@ def test_backtest_modify_position_no_position_found(account: Account):
 
 def test_backtest_modify_position_specific_ticket(account: Account):
     """
-    Testa a função `__backtest_modify_position` quando há múltiplas posições abertas e
-    um `ticket` específico é fornecido.
+    Tests the `__backtest_modify_position` function when there are multiple open positions and
+    a specific `ticket` is provided.
 
-    Verifica:
-    1. Se a posição correta é selecionada pelo `ticket`.
-    2. Se os atributos `stop_price`, `profit_price` e `comment` são modificados corretamente.
+    Verifies:
+    1. If the correct position is selected by the `ticket`.
+    2. If the attributes `stop_price`, `profit_price` and `comment` are modified correctly.
 
     Args:
-        account (Account): Fixture que fornece uma conta de backtest pré-configurada.
+        account (Account): Fixture that provides a backtest account pre-configured.
     """
-    # **Configuração da Conta de Backtest**
+    # **Backtest Account Configuration**
     account.login_backtest(
         balance=5000, leverage=100
-    )  # Inicia a conta com saldo de $5.000 e alavancagem 1:100.
-    symbol = "EURUSD"  # Par de moedas negociado.
+    )  # Starts the account with a balance of $5.000 and leverage 1:100.
+    symbol = "EURUSD"  # Currency pair being traded.
     operation_handler = (
         account.backtest_account_data.operation
-    )  # Manipulador de operações.
-    initial_price = 1.12345  # Preço de abertura da posição.
-    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Data/hora do candle.
+    )  # Gets the operation handler.
+    initial_price = 1.12345  # Initial position opening price.
+    position_time = datetime(2025, 1, 3, tzinfo=timezone.utc)  # Candle time.
 
-    # **Mock de Candle para Simulação de Mercado**
+    # **Mock Candle for Market Simulation**
     mock_series_data = {
         "open": 1.12340,
         "high": 1.12360,
         "low": 1.12320,
         "close": initial_price,
-        "tick_volume": 100,  # Volume de ticks para simular liquidez.
+        "tick_volume": 100,  # Volume of ticks to simulate liquidity.
     }
     mock_time_index = pd.to_datetime(position_time)
     mock_series = pd.Series(mock_series_data, name=mock_time_index)
 
-    # Define os dados do novo símbolo como um dicionário
+    # Defines the new symbol data as a dictionary
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -325,15 +325,15 @@ def test_backtest_modify_position_specific_ticket(account: Account):
         "last_candle": mock_series,
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new record to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # **Abertura de Duas Posições**
+    # **Initial Position Opening**
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -344,7 +344,7 @@ def test_backtest_modify_position_specific_ticket(account: Account):
         comment="Position 1",
     )
 
-    # **Atualização do Timestamp para Garantir Diferença entre as Ordens**
+    # **Timestamp Update to Ensure Difference between Orders**
     updated_time = operation_handler.backtest_symbols_data.loc[
         symbol
     ].last_candle.name + timedelta(days=2)
@@ -352,7 +352,7 @@ def test_backtest_modify_position_specific_ticket(account: Account):
         mock_series_data, name=pd.to_datetime(updated_time)
     )
 
-    # Segunda posição com timestamp diferente.
+    # **Second Position Opening with Different Timestamp**
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -363,32 +363,32 @@ def test_backtest_modify_position_specific_ticket(account: Account):
         comment="Position 2",
     )
 
-    # **Seleciona a Posição a ser Modificada**
+    # **Selects the Position to be Modified**
     position_to_modify = account.backtest_account_data.positions[
         1
-    ]  # Seleciona a segunda posição.
+    ]  # Selects the second position.
 
-    # **Parâmetros de Modificação**
-    new_stop_price = 1.1190  # Novo stop-loss.
-    new_profit_price = 1.1380  # Novo take-profit.
-    new_comment = "Updated Position 2"  # Novo comentário.
+    # **Modification Parameters**
+    new_stop_price = 1.1190  # New stop-loss.
+    new_profit_price = 1.1380  # New take-profit.
+    new_comment = "Updated Position 2"  # New comment.
 
-    # **Modificação da Posição**
+    # **Position Modification**
     __backtest_position_modify(
         operation_class=operation_handler,
         stop_price=new_stop_price,
         profit_price=new_profit_price,
-        position=position_to_modify.ticket,  # Fornece o `ticket` específico.
+        position=position_to_modify.ticket,  # Provides the specific `ticket`.
         comment=new_comment,
     )
 
-    # **Verificações**
+    # **Verifications**
     assert (
         position_to_modify.sl == new_stop_price
-    ), "O stop-loss não foi atualizado corretamente."
+    ), "The stop-loss was not updated correctly."
     assert (
         position_to_modify.tp == new_profit_price
-    ), "O take-profit não foi atualizado corretamente."
+    ), "The take-profit was not updated correctly."
     assert (
         position_to_modify.comment == new_comment
-    ), "O comentário não foi atualizado corretamente."
+    ), "The comment was not updated correctly."

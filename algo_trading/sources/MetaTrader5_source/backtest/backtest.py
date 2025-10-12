@@ -368,7 +368,7 @@ def __validate_order_price(
             )
         if stop_limit > price:
             raise ValueError(
-                f"Limit price {stop_limit} for BUY_STOP_LIMIT should be less than the initial price ({price})"
+                f"Stop limit price {stop_limit} for BUY_STOP_LIMIT should be less than the initial price ({price})"
             )
     elif order_type == ENUM_ORDER_TYPE.ORDER_TYPE_SELL_STOP_LIMIT:
         if price > last_candle["close"]:
@@ -377,7 +377,7 @@ def __validate_order_price(
             )
         if stop_limit < price:
             raise ValueError(
-                f"Limit price {stop_limit} for SELL_STOP_LIMIT should be greater than the initial price ({price})"
+                f"Stop limit price {stop_limit} for SELL_STOP_LIMIT should be greater than the initial price ({price})"
             )
 
 
@@ -1794,11 +1794,11 @@ def __backtest_account_update_margin(operation_class: "Operation") -> None:
 
 def __backtest_account_check_margin_call(operation_class: "Operation") -> None:
     """
-    Verifica se o nível de margem da conta atingiu o limite definido (`margin_so_call`) e,
-    se necessário, emite um alerta de margin call.
+    Verify if the margin level of the account reached the defined limit (`margin_so_call`) and,
+    if necessary, emits a margin call alert.
 
     Args:
-        operation_class (Operation): Classe de operação contendo os dados da conta.
+        operation_class (Operation): Class of operation containing account data.
 
     Returns:
         None: The function does not return anything, but may emit warning logs if the margin level is critical.
@@ -1892,7 +1892,7 @@ def __backtest_account_process_stop_out(operation_class: "Operation") -> None:
         # Verify if the margin level has returned to above the limit after closing positions
         if account_data.margin_level > account_data.margin_so_so:
             logging.info(
-                "[STOP OUT] Margin level restored after closing positions."
+                "[STOP OUT] Margin level restored after position closing."
             )
             break
 

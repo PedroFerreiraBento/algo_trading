@@ -1,36 +1,36 @@
-# **Importações de bibliotecas e dependências necessárias**
-import pytest  # Framework de testes
+# **Importations of libraries and dependencies**
+import pytest  # Framework for tests
 from unittest.mock import (
     patch,
-)  # Ferramenta de mock para simular chamadas de funções e métodos
+)  # Tool for mocking function and method calls
 
-# **Importação da classe Account (gerenciamento de contas do MetaTrader 5)**
+# **Importation of Account class (MetaTrader 5 account management)**
 from algo_trading.sources.MetaTrader5_source.account.account import Account
 
-# **Importações de classes, enums e funções do MetaTrader 5**
+# **Importation of classes, enums and functions of MetaTrader 5**
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    MqlAccountInfo,  # Modelo de informações da conta (ex.: saldo, alavancagem, lucro)
-    ENUM_ACCOUNT_TRADE_MODE,  # Enum para o modo de operação da conta (real/demo)
-    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum para o modo de stopout (percentual/valor fixo)
-    ENUM_ACCOUNT_MARGIN_MODE,  # Enum para o modo de cálculo de margem (hedge/redução)
+    MqlAccountInfo,  # Account information model (e.g.: balance, leverage, profit)
+    ENUM_ACCOUNT_TRADE_MODE,  # Enum for account operation mode (real/demo)
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum for stopout mode (percent/fix value)
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum for margin calculation mode (hedge/reduction)
 )
 
-# **Importação das funções de backtest**
+# **Importation of backtest functions**
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __process_account_update_data,  # Função de atualização dos dados da conta no backtest
+    __process_account_update_data,  # Function to update account data in backtest
 )
 
 
-# **Fixture de Conta para os Testes**
+# **Account fixture for tests**
 @pytest.fixture
 def account():
     """
-    Fixture que cria uma instância de conta para os testes.
-    Simula o login em uma conta ao vivo e reinicializa a conta em modo backtest.
+    Creates an account instance for testing.
+    Simulates login to a live account and reinitializes the account in backtest mode.
     """
     account = Account()
 
-    # Simula login na conta ao vivo antes do backtest
+    # Simulates login to a live account before backtesting
     account.live_account_data = MqlAccountInfo(
         login=123456,
         trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
@@ -65,13 +65,13 @@ def account():
     return account
 
 
-# **Teste: Verificação da Ordem de Execução das Funções Internas**
+# **Test: Verification of the Execution Order of Internal Functions**
 def test_process_update_data_execution_order(account: Account):
     """
-    Testa a ordem de execução das funções internas na função `__process_update_data`.
+    Tests the execution order of internal functions in the `__process_update_data` function.
 
-    Objetivo:
-    - Garantir que as funções internas são chamadas na ordem correta:
+    Objective:
+    - Ensure that internal functions are called in the correct order:
       1. `__backtest_position_apply_swap_to_positions`
       2. `__backtest_position_update_price_and_profit`
       3. `__backtest_account_update_margin`
@@ -80,10 +80,10 @@ def test_process_update_data_execution_order(account: Account):
     """
     account.login_backtest(
         balance=10000, leverage=100
-    )  # Inicializa a conta com saldo e alavancagem
+    )  # Initializes the account with balance and leverage
     operation_handler = account.backtest_account_data.operation
 
-    # **Mock das funções internas**
+    # **Mock of internal functions**
     with patch(
         "algo_trading.sources.MetaTrader5_source.backtest.backtest.__backtest_position_apply_swap_to_positions",
         autospec=True,
@@ -101,17 +101,17 @@ def test_process_update_data_execution_order(account: Account):
         autospec=True,
     ) as mock_process_stop_out:
 
-        # **Evitar execução real**
+        # **Avoid real execution**
         mock_swap.side_effect = None
         mock_update_price.side_effect = None
         mock_update_margin.side_effect = None
         mock_check_margin_call.side_effect = None
         mock_process_stop_out.side_effect = None
 
-        # **Chamada da função principal**
+        # **Function call**
         __process_account_update_data(operation_handler)
 
-        # **Verificação da ordem de execução das funções internas**
+        # **Verification of the execution order of internal functions**
         calls = [
             mock_swap.mock_calls[0],
             mock_update_price.mock_calls[0],
@@ -120,7 +120,7 @@ def test_process_update_data_execution_order(account: Account):
             mock_process_stop_out.mock_calls[0],
         ]
 
-        # **Confirmação se as funções foram chamadas na ordem correta**
+        # **Confirmation if functions were called in the correct order**
         assert calls == sorted(
             calls, key=lambda x: x[1]
-        ), "As funções não foram chamadas na ordem esperada."
+        ), "Functions were not called in the expected order."

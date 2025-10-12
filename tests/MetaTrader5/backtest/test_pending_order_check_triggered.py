@@ -1,44 +1,44 @@
-# **Importações de Bibliotecas e Dependências Necessárias**
-import pytest  # Framework de testes
-from datetime import datetime, timezone, timedelta  # Manipulação de datas e horários
-import pandas as pd  # Estruturas de dados (DataFrame e Series) para simulação de candles
+# **Imports of Libraries and Dependencies**
+import pytest  # Framework for automated test creation and execution
+from datetime import datetime, timezone, timedelta  # Date and time manipulation
+import pandas as pd  # DataFrames and time series manipulation
 
-# **Importações de Enums e Classes do MetaTrader 5**
+# **Import Enums and MetaTrader 5 Classes**
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    ENUM_ORDER_TYPE_PENDING,  # Tipos de ordens pendentes (BUY_LIMIT, SELL_LIMIT, BUY_STOP, etc.)
-    ENUM_ORDER_TYPE,  # Tipos de ordens (compra e venda)
-    ENUM_SYMBOL_CALC_MODE,  # Modo de cálculo de margem (Forex, CFD, etc.)
-    ENUM_ACCOUNT_TRADE_MODE,  # Modos de operação da conta (DEMO, REAL)
-    ENUM_ACCOUNT_STOPOUT_MODE,  # Modo de stop out (percentual ou valor monetário)
-    ENUM_ACCOUNT_MARGIN_MODE,  # Modo de cálculo de margem (Hedging ou Netting)
+    ENUM_ORDER_TYPE_PENDING,  # Types of pending orders (BUY_LIMIT, SELL_LIMIT, BUY_STOP, etc.)
+    ENUM_ORDER_TYPE,  # Types of orders (buy and sell)
+    ENUM_SYMBOL_CALC_MODE,  # Calculation mode (Forex, CFD, etc.)
+    ENUM_ACCOUNT_TRADE_MODE,  # Account operation modes (DEMO, REAL)
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Stop out mode (percent or monetary value)
+    ENUM_ACCOUNT_MARGIN_MODE,  # Margin calculation mode (Hedging or Netting)
     ENUM_SYMBOL_SWAP_MODE,
     ENUM_POSITION_TYPE,
-    MqlAccountInfo,  # Estrutura com informações da conta (saldo, margem, etc.)
+    MqlAccountInfo,  # Account information structure (balance, margin, etc.)
 )
 
-# **Importações de Funções de Backtest**
+# **Import Backtest Functions**
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __backtest_pending_order_check_expiration,  # Função que verifica a expiração de ordens pendentes
-    __backtest_pending_order_check_triggered,  # Função que verifica se uma ordem pendente foi acionada
-    __backtest_pending_order_open,  # Função que cria e registra uma ordem pendente
+    __backtest_pending_order_check_expiration,  # Function to check and remove expired pending orders
+    __backtest_pending_order_check_triggered,  # Function to check if a pending order was triggered
+    __backtest_pending_order_open,  # Function to create and register a pending order
 )
 
-# **Importação da Classe de Conta para Testes**
+# **Import Account Class for Tests**
 from algo_trading.sources.MetaTrader5_source.account.account import (
     Account,
-)  # Classe Account para manipulação dos dados da conta durante o backtest
+)  # Account class for manipulating account data during backtesting
 
 
-# **Fixture de Conta para os Testes**
+# **Account Fixture for Tests**
 @pytest.fixture
 def account():
     """
-    Fixture que cria uma instância de conta para os testes.
-    Simula o login em uma conta ao vivo e reinicializa a conta em modo backtest.
+    Fixture that creates an account instance for tests.
+    Simulates login to a live account and reinitializes the account in backtest mode.
     """
     account = Account()
 
-    # Simula login na conta ao vivo antes do backtest
+    # Simulate login to a live account before backtesting
     account.live_account_data = MqlAccountInfo(
         login=123456,
         trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
@@ -73,12 +73,12 @@ def account():
     return account
 
 
-# **Teste 1: Ordem de Compra (`BUY_LIMIT`) Acionada pelo `high`**
+# **Test 1: Buy Limit Order Triggered**
 def test_buy_limit_triggered(account: Account):
     """
-    Testa se uma ordem `BUY_LIMIT` é acionada corretamente quando o preço `high` do candle atinge o preço da ordem.
+    Tests if a `BUY_LIMIT` order is triggered correctly when the `high` price of the candle reaches the order price.
     """
-    # Resetando a conta
+    # Resetting the account
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
 
@@ -104,13 +104,13 @@ def test_buy_limit_triggered(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # Ordem `BUY_LIMIT` com preço de 1.12 (igual ao `high` do candle)
+    # Open `BUY_LIMIT` order with price of 1.12 (equal to the `high` of the candle)
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -122,26 +122,26 @@ def test_buy_limit_triggered(account: Account):
 
     assert (
         len(operation_handler.account_data.orders) == 1
-    ), "A ordem deveria estar presente antes do acionamento."
+    ), "The order should be present before activation."
 
-    # Executa a verificação de acionamento
+    # Execute expiration check
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # Verifica se a ordem foi ativada e removida
+    # Verify after expiration
     assert (
         len(operation_handler.account_data.orders) == 0
-    ), "A ordem deveria ter sido acionada e removida."
+    ), "The order should have expired and been removed."
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição correspondente deveria ter sido aberta."
+    ), "The corresponding position should have been opened."
 
 
-# **Teste 2: Ordem de Venda (`SELL_LIMIT`) Acionada pelo `low`**
+# **Test 2: Sell Limit Order Triggered**
 def test_sell_limit_triggered(account: Account):
     """
-    Testa se uma ordem `SELL_LIMIT` é acionada corretamente quando o preço `low` do candle atinge o preço da ordem.
+    Tests if a `SELL_LIMIT` order is triggered correctly when the `low` price of the candle reaches the order price.
     """
-    # Resetando a conta
+    # Resetting the account
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
 
@@ -167,13 +167,13 @@ def test_sell_limit_triggered(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # Ordem `SELL_LIMIT` com preço de 1.10 (igual ao `low` do candle)
+    # Open `SELL_LIMIT` order with price of 1.10 (equal to the `low` of the candle)
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -185,26 +185,26 @@ def test_sell_limit_triggered(account: Account):
 
     assert (
         len(operation_handler.account_data.orders) == 1
-    ), "A ordem deveria estar presente antes do acionamento."
+    ), "The order should be present before activation."
 
-    # Executa a verificação de acionamento
+    # Execute expiration check
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # Verifica se a ordem foi ativada e removida
+    # Verify after expiration
     assert (
         len(operation_handler.account_data.orders) == 0
-    ), "A ordem deveria ter sido acionada e removida."
+    ), "The order should have been triggered and removed."
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição correspondente deveria ter sido aberta."
+    ), "The corresponding position should have been opened."
 
 
-# **Teste 3: Ordem de Compra (`BUY_LIMIT`) Não Acionada**
+# **Test 3: Buy Limit Order Not Triggered**
 def test_buy_limit_not_triggered(account: Account):
     """
-    Testa se uma ordem `BUY_LIMIT` não é acionada quando o preço `high` do candle não atinge o preço da ordem.
+    Tests if a `BUY_LIMIT` order is not triggered when the `high` price of the candle does not reach the order price.
     """
-    # Resetando a conta
+    # Resetting the account
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
 
@@ -230,13 +230,13 @@ def test_buy_limit_not_triggered(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # Ordem `BUY_LIMIT` com preço de 1.12 (acima do `high` do candle)
+    # Open `BUY_LIMIT` order with price of 1.12 (above the `high` of the candle)
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -246,21 +246,21 @@ def test_buy_limit_not_triggered(account: Account):
         comment="Buy Limit Order",
     )
 
-    # Executa a verificação de acionamento
+    # Execute expiration check
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # Verifica se a ordem não foi ativada
+    # Verify after expiration
     assert (
         len(operation_handler.account_data.orders) == 1
-    ), "A ordem não deveria ter sido acionada."
+    ), "The order should not have been triggered."
 
 
-# **Teste 4: Ordem de Venda (`SELL_STOP`) Não Acionada**
+# **Test 4: Sell Stop Order Not Triggered**
 def test_sell_stop_not_triggered(account: Account):
     """
-    Testa se uma ordem `SELL_STOP` não é acionada quando o preço `low` do candle não atinge o preço da ordem.
+    Tests if a `SELL_STOP` order is not triggered when the `low` price of the candle does not reach the order price.
     """
-    # Resetando a conta
+    # Resetting the account
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
 
@@ -286,13 +286,13 @@ def test_sell_stop_not_triggered(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # Ordem `SELL_STOP` com preço de 1.10 (abaixo do `low` do candle)
+    # Open `SELL_STOP` order with price of 1.10 (below the `low` of the candle)
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -302,21 +302,21 @@ def test_sell_stop_not_triggered(account: Account):
         comment="Sell Stop Order",
     )
 
-    # Executa a verificação de acionamento
+    # Execute expiration check
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # Verifica se a ordem não foi ativada
+    # Verify after expiration
     assert (
         len(operation_handler.account_data.orders) == 1
-    ), "A ordem não deveria ter sido acionada."
+    ), "The order should not have been triggered."
 
 
-# **Teste 5: Ordem `BUY_STOP` Acionada pelo `high`**
+# **Test 5: Buy Stop Order Triggered**
 def test_buy_stop_triggered(account: Account):
     """
-    Testa se uma ordem `BUY_STOP` é acionada corretamente quando o preço `high` do candle atinge o preço da ordem.
+    Tests if a `BUY_STOP` order is triggered correctly when the `high` price of the candle reaches the order price.
     """
-    # Resetando a conta
+    # Resetting the account
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
 
@@ -342,13 +342,13 @@ def test_buy_stop_triggered(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # Ordem `BUY_STOP` com preço de 1.14 (igual ao `high` do candle)
+    # Open `BUY_STOP` order with price of 1.14 (equal to the `high` of the candle)
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -358,24 +358,24 @@ def test_buy_stop_triggered(account: Account):
         comment="Buy Stop Order",
     )
 
-    # Executa a verificação de acionamento
+    # Execute expiration check
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # Verifica se a ordem foi ativada e removida
+    # Verify after expiration
     assert (
         len(operation_handler.account_data.orders) == 0
-    ), "A ordem deveria ter sido acionada e removida."
+    ), "The order should have been triggered and removed."
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição correspondente deveria ter sido aberta."
+    ), "The corresponding position should have been opened."
 
 
-# **Teste 6: Ordem `SELL_LIMIT` Acionada pelo `low`**
+# **Test 6: Sell Limit Order Triggered by `low`**
 def test_sell_limit_triggered_low(account: Account):
     """
-    Testa se uma ordem `SELL_LIMIT` é acionada corretamente quando o preço `low` do candle atinge o preço da ordem.
+    Tests if a `SELL_LIMIT` order is triggered correctly when the `low` price of the candle reaches the order price.
     """
-    # Resetando a conta
+    # Resetting the account
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
 
@@ -401,13 +401,13 @@ def test_sell_limit_triggered_low(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # Ordem `SELL_LIMIT` com preço de 1.08 (igual ao `low` do candle)
+    # Open `SELL_LIMIT` order with price of 1.08 (equal to the `low` of the candle)
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -417,25 +417,25 @@ def test_sell_limit_triggered_low(account: Account):
         comment="Sell Limit Order",
     )
 
-    # Executa a verificação de acionamento
+    # Execute expiration check
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # Verifica se a ordem foi ativada e removida
+    # Verify after expiration
     assert (
         len(operation_handler.account_data.orders) == 0
-    ), "A ordem deveria ter sido acionada e removida."
+    ), "The order should have been triggered and removed."
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição correspondente deveria ter sido aberta."
+    ), "The corresponding position should have been opened."
 
 
-# **Teste 7: Ordem `BUY_STOP_LIMIT` Acionada pelo `high`**
+# **Test 7: Buy Stop Limit Order Triggers and Checks Limit**
 def test_buy_stop_limit_triggers_and_checks_limit(account: Account):
     """
-    Testa se uma ordem `BUY_STOP_LIMIT` cria corretamente uma ordem `BUY_LIMIT`.
-    Verifica:
-    1. Caso em que a ordem `LIMIT` não é acionada após a criação.
-    2. Caso em que a ordem `LIMIT` é acionada no mesmo candle.
+    Tests if a `BUY_STOP_LIMIT` order creates a `BUY_LIMIT` order correctly.
+    Verifies:
+    1. Case where the `LIMIT` order is not triggered after creation.
+    2. Case where the `LIMIT` order is triggered on the same candle.
     """
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -444,7 +444,7 @@ def test_buy_stop_limit_triggers_and_checks_limit(account: Account):
     symbol = "EURUSD"
     last_candle_time = datetime(2025, 1, 10, 12, 0, tzinfo=timezone.utc)
 
-    # Configuração do candle mais recente
+    # Complete configuration
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -463,101 +463,101 @@ def test_buy_stop_limit_triggers_and_checks_limit(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # Ordem `BUY_STOP_LIMIT` com preço inicial 1.12 e preço limite 1.125
+    # Open `BUY_STOP_LIMIT` order with initial price of 1.12 and limit price of 1.125
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
         order_type=ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_BUY_STOP_LIMIT,
         volume=1,
-        price=1.12,  # Preço inicial
-        stop_limit=1.05,  # Preço limite
+        price=1.12,  # Initial price
+        stop_limit=1.05,  # Limit price
         stop_price=1.0,
         profit_price=1.13,
         comment="Buy Stop Limit Order",
     )
 
-    # Simula o acionamento da ordem `STOP_LIMIT`
+    # Simulate the activation of the `STOP_LIMIT` order
     updated_candle_time = last_candle_time + timedelta(minutes=1)
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.11, "high": 1.11996, "low": 1.10, "close": 1.11},
         name=updated_candle_time,
     )
 
-    # Executa a verificação de acionamento
+    # Execute expiration check
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # Verifica se a ordem `STOP_LIMIT` foi removida e `LIMIT` foi criada
+    # Verify after expiration
     assert (
         len(operation_handler.account_data.orders) == 1
-    ), "A ordem `BUY_STOP_LIMIT` deveria criar uma `BUY_LIMIT` pendente."
+    ), "The `BUY_STOP_LIMIT` order should create a `BUY_LIMIT` pending order."
 
-    # Verifica os detalhes da ordem `BUY_LIMIT` criada
+    # Verify the details of the created `BUY_LIMIT` order
     buy_limit_order = operation_handler.account_data.orders[0]
     assert (
         buy_limit_order.type == ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_BUY_LIMIT
-    ), "A ordem criada deveria ser do tipo `BUY_LIMIT`."
-    assert buy_limit_order.price_open == 1.05, "O preço da `BUY_LIMIT` está incorreto."
+    ), "The created order should be of type `BUY_LIMIT`."
+    assert buy_limit_order.price_open == 1.05, "The `BUY_LIMIT` price is incorrect."
     assert (
         buy_limit_order.volume_initial == 1
-    ), "O volume da `BUY_LIMIT` está incorreto."
-    assert buy_limit_order.sl == 1.0, "O stop-loss da `BUY_LIMIT` está incorreto."
-    assert buy_limit_order.tp == 1.13, "O take-profit da `BUY_LIMIT` está incorreto."
+    ), "The volume of the `BUY_LIMIT` is incorrect."
+    assert buy_limit_order.sl == 1.0, "The stop-loss of the `BUY_LIMIT` is incorrect."
+    assert buy_limit_order.tp == 1.13, "The take-profit of the `BUY_LIMIT` is incorrect."
 
-    # Simula um cenário onde a ordem `LIMIT` não é acionada
+    # Simulate a scenario where the `LIMIT` order is not triggered
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.12, "high": 1.124, "low": 1.05, "close": 1.123},
         name=updated_candle_time + timedelta(minutes=1),
     )
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # A ordem `LIMIT` ainda deve estar pendente
+    # The `LIMIT` order should still be pending
     assert (
         len(operation_handler.account_data.orders) == 1
-    ), "A ordem `BUY_LIMIT` não deveria ter sido acionada ainda."
+    ), "The `BUY_LIMIT` order should not have been triggered yet."
     assert (
         operation_handler.account_data.positions == []
-    ), "Nenhuma posição deveria ter sido aberta."
+    ), "No position should have been opened."
 
-    # Simula um cenário onde a ordem `LIMIT` é acionada no próximo candle
+    # Simulate a scenario where the `LIMIT` order is triggered on the next candle
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.125, "high": 1.13, "low": 1.04996, "close": 1.126},
         name=updated_candle_time + timedelta(minutes=2),
     )
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # Verifica se a ordem `LIMIT` foi acionada
+    # Verify if the `LIMIT` order was triggered
     assert (
         len(operation_handler.account_data.orders) == 0
-    ), "A ordem `BUY_LIMIT` deveria ter sido acionada."
+    ), "The `BUY_LIMIT` order should have been triggered."
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "Uma posição correspondente deveria ter sido aberta."
+    ), "A corresponding position should have been opened."
 
-    # Verifica os detalhes da posição aberta
+    # Verify the details of the opened position
     position = operation_handler.account_data.positions[0]
-    assert position.symbol == symbol, "O símbolo da posição está incorreto."
+    assert position.symbol == symbol, "The symbol of the position is incorrect."
     assert (
         position.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
-    ), "O tipo da posição está incorreto."
-    assert position.price_open == 1.05, "O preço de abertura da posição está incorreto."
-    assert position.volume == 1, "O volume da posição está incorreto."
-    assert position.sl == 1.0, "O stop-loss da posição está incorreto."
-    assert position.tp == 1.13, "O take-profit da posição está incorreto."
+    ), "The type of the position is incorrect."
+    assert position.price_open == 1.05, "The opening price of the position is incorrect."
+    assert position.volume == 1, "The volume of the position is incorrect."
+    assert position.sl == 1.0, "The stop-loss of the position is incorrect."
+    assert position.tp == 1.13, "The take-profit of the position is incorrect."
 
 
-# **Teste 8: Ordem `SELL_STOP_LIMIT` Acionada pelo `low`**
+# **Test 8: Sell Stop Limit Order Triggers and Checks Limit**
 def test_sell_stop_limit_triggers_and_checks_limit(account: Account):
     """
-    Testa se uma ordem `SELL_STOP_LIMIT` cria corretamente uma ordem `SELL_LIMIT`.
-    Verifica:
-    1. Caso em que a ordem `LIMIT` não é acionada após a criação.
-    2. Caso em que a ordem `LIMIT` é acionada no mesmo candle.
+    Tests if a `SELL_STOP_LIMIT` order creates a `SELL_LIMIT` order correctly.
+    Verifies:
+    1. Case where the `LIMIT` order is not triggered after creation.
+    2. Case where the `LIMIT` order is triggered on the same candle.
     """
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -565,7 +565,7 @@ def test_sell_stop_limit_triggers_and_checks_limit(account: Account):
     symbol = "EURUSD"
     last_candle_time = datetime(2025, 1, 10, 12, 0, tzinfo=timezone.utc)
 
-    # Configuração do candle mais recente
+    # Complete configuration
     new_data = {
         "tick_size": 1e-05,
         "contract_size": 100_000,
@@ -584,102 +584,102 @@ def test_sell_stop_limit_triggers_and_checks_limit(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # Ordem `SELL_STOP_LIMIT` com preço inicial 1.18 e preço limite 1.175
+    # Open `SELL_STOP_LIMIT` order with initial price of 1.18 and limit price of 1.175
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
         order_type=ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_SELL_STOP_LIMIT,
         volume=1,
-        price=1.18,  # Preço inicial
-        stop_limit=1.185,  # Preço limite
+        price=1.18,  # Initial price
+        stop_limit=1.185,  # Limit price
         stop_price=1.19,
         profit_price=1.16,
         comment="Sell Stop Limit Order",
     )
 
-    # Simula o acionamento da ordem `STOP_LIMIT`
+    # Simulate the activation of the `STOP_LIMIT` order
     updated_candle_time = last_candle_time + timedelta(minutes=1)
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.19, "high": 1.20, "low": 1.18, "close": 1.18},
         name=updated_candle_time,
     )
 
-    # Executa a verificação de acionamento
+    # Execute expiration check
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # Verifica se a ordem `STOP_LIMIT` foi removida e `LIMIT` foi criada
+    # Verify if the `STOP_LIMIT` order was removed and `LIMIT` was created
     assert (
         len(operation_handler.account_data.orders) == 1
-    ), "A ordem `SELL_STOP_LIMIT` deveria criar uma `SELL_LIMIT` pendente."
+    ), "The `SELL_STOP_LIMIT` order should create a `SELL_LIMIT` pending order."
 
-    # Verifica os detalhes da ordem `SELL_LIMIT` criada
+    # Verify the details of the created `SELL_LIMIT` order
     sell_limit_order = operation_handler.account_data.orders[0]
     assert (
         sell_limit_order.type == ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_SELL_LIMIT
-    ), "A ordem criada deveria ser do tipo `SELL_LIMIT`."
+    ), "The created order should be of type `SELL_LIMIT`."
     assert (
         sell_limit_order.price_open == 1.185
-    ), "O preço da `SELL_LIMIT` está incorreto."
+    ), "The `SELL_LIMIT` price is incorrect."
     assert (
         sell_limit_order.volume_initial == 1
-    ), "O volume da `SELL_LIMIT` está incorreto."
-    assert sell_limit_order.sl == 1.19, "O stop-loss da `SELL_LIMIT` está incorreto."
-    assert sell_limit_order.tp == 1.16, "O take-profit da `SELL_LIMIT` está incorreto."
+    ), "The volume of the `SELL_LIMIT` is incorrect."
+    assert sell_limit_order.sl == 1.19, "The stop-loss of the `SELL_LIMIT` is incorrect."
+    assert sell_limit_order.tp == 1.16, "The take-profit of the `SELL_LIMIT` is incorrect."
 
-    # Simula um cenário onde a ordem `LIMIT` não é acionada
+    # Simulate a scenario where the `LIMIT` order is not triggered
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.18, "high": 1.184, "low": 1.176, "close": 1.177},
         name=updated_candle_time + timedelta(minutes=1),
     )
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # A ordem `LIMIT` ainda deve estar pendente
+    # The `LIMIT` order should still be pending
     assert (
         len(operation_handler.account_data.orders) == 1
-    ), "A ordem `SELL_LIMIT` não deveria ter sido acionada ainda."
+    ), "The `SELL_LIMIT` order should not have been triggered yet."
     assert (
         operation_handler.account_data.positions == []
-    ), "Nenhuma posição deveria ter sido aberta."
+    ), "No position should have been opened."
 
-    # Simula um cenário onde a ordem `LIMIT` é acionada no próximo candle
+    # Simulate a scenario where the `LIMIT` order is triggered on the next candle
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.175, "high": 1.185, "low": 1.174, "close": 1.175},
         name=updated_candle_time + timedelta(minutes=2),
     )
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # Verifica se a ordem `LIMIT` foi acionada
+    # Verify if the `LIMIT` order was triggered
     assert (
         len(operation_handler.account_data.orders) == 0
-    ), "A ordem `SELL_LIMIT` deveria ter sido acionada."
+    ), "The `SELL_LIMIT` order should have been triggered."
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "Uma posição correspondente deveria ter sido aberta."
+    ), "A position corresponding should have been opened."
 
-    # Verifica os detalhes da posição aberta
+    # Verify the details of the opened position
     position = operation_handler.account_data.positions[0]
-    assert position.symbol == symbol, "O símbolo da posição está incorreto."
+    assert position.symbol == symbol, "The symbol of the position is incorrect."
     assert (
         position.type == ENUM_POSITION_TYPE.POSITION_TYPE_SELL
-    ), "O tipo da posição está incorreto."
+    ), "The type of the position is incorrect."
     assert (
         position.price_open == 1.185
-    ), "O preço de abertura da posição está incorreto."
-    assert position.volume == 1, "O volume da posição está incorreto."
-    assert position.sl == 1.19, "O stop-loss da posição está incorreto."
-    assert position.tp == 1.16, "O take-profit da posição está incorreto."
+    ), "The opening price of the position is incorrect."
+    assert position.volume == 1, "The volume of the position is incorrect."
+    assert position.sl == 1.19, "The stop-loss of the position is incorrect."
+    assert position.tp == 1.16, "The take-profit of the position is incorrect."
 
 
-# **Teste 9: Ordem Inválida (Tipo Desconhecido)**
+# **Test 9: Invalid Order Type**
 def test_invalid_order_type(account: Account):
     """
-    Testa se o sistema ignora ordens com tipos não reconhecidos.
+    Tests if the system ignores orders with unknown types.
     """
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -706,38 +706,38 @@ def test_invalid_order_type(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # Criação de uma ordem com tipo inválido (não mapeado)
+    # Create an invalid order type (not mapped)
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE.ORDER_TYPE_CLOSE_BY,  # Tipo inválido
+        order_type=ENUM_ORDER_TYPE.ORDER_TYPE_CLOSE_BY,  # Invalid order type
         volume=1,
         price=1.14,
         comment="Invalid Order Type",
     )
 
-    # Executa a verificação de acionamento
+    # Execute expiration check
     __backtest_pending_order_check_triggered(operation_handler)
 
-    # Verifica se a ordem ainda está presente
+    # Verify if the invalid order is still present
     assert (
         len(operation_handler.account_data.orders) == 1
-    ), "A ordem inválida não deveria ter sido acionada."
+    ), "The invalid order should not have been triggered."
     assert (
         len(operation_handler.account_data.positions) == 0
-    ), "Nenhuma posição deveria ter sido aberta."
+    ), "No position should have been opened."
 
 
-# **Teste 10: Ordem Expirada Não Deve Ser Acionada**
+# **Test 10: Expired Order Should Not Be Triggered**
 def test_expired_order_not_triggered(account: Account):
     """
-    Testa se uma ordem expirada não é acionada mesmo que o preço seja atingido.
+    Tests if an expired order is not triggered even if the price is reached.
     """
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -764,13 +764,13 @@ def test_expired_order_not_triggered(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Ordem expirada
+    # Expired order
     expired_time = last_candle_time + timedelta(minutes=1)
     __backtest_pending_order_open(
         operation_class=operation_handler,
@@ -786,14 +786,14 @@ def test_expired_order_not_triggered(account: Account):
         name=expired_time + timedelta(minutes=1),
     )
 
-    # Executa a verificação de acionamento
+    # Execute expiration check
     __backtest_pending_order_check_expiration(operation_class=operation_handler)
     __backtest_pending_order_check_triggered(operation_class=operation_handler)
 
-    # Verifica se a ordem ainda está presente (não deve ser acionada)
+    # Verify if the expired order is still present (should not be triggered)
     assert (
         len(operation_handler.account_data.orders) == 0
-    ), "A ordem expirada deveria ter sido descartada."
+    ), "The expired order should not have been triggered."
     assert (
         len(operation_handler.account_data.positions) == 0
-    ), "Nenhuma posição deveria ter sido aberta."
+    ), "No position should have been opened."

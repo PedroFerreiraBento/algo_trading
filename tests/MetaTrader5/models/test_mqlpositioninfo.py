@@ -13,10 +13,10 @@ def test_valid_position_creation():
     """Test creating a valid MqlPositionInfo instance."""
     position = MqlPositionInfo(
         ticket=12345,
-        time=datetime.now(timezone.utc),  # Corrigido
-        time_msc=datetime.now(timezone.utc),  # Corrigido
-        time_update=datetime.now(timezone.utc),  # Corrigido
-        time_update_msc=datetime.now(timezone.utc),  # Corrigido
+        time=datetime.now(timezone.utc),
+        time_msc=datetime.now(timezone.utc),
+        time_update=datetime.now(timezone.utc),
+        time_update_msc=datetime.now(timezone.utc),
         type=ENUM_POSITION_TYPE.POSITION_TYPE_BUY,
         magic=42,
         identifier=999,

@@ -1,47 +1,47 @@
-# **Importações de Bibliotecas e Dependências Necessárias**
+# **Imports of Libraries and Dependencies**
 
-# **Framework de Testes**
+# **Test Framework**
 import pytest
 
-# **Manipulação de Datas e Horários**
+# **Date and Time Manipulation**
 from datetime import datetime, timezone, timedelta
 
-# **Estruturas de Dados para Manipulação de Candles**
+# **Data Structures for Candle Manipulation**
 import pandas as pd
 
-# **Importações do Modelo MetaTrader 5**
+# **MetaTrader 5 Model Imports**
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    ENUM_POSITION_TYPE,  # Tipos de Posições (BUY e SELL)
-    ENUM_SYMBOL_CALC_MODE,  # Modos de Cálculo (FOREX, CFDs, etc.)
-    ENUM_ACCOUNT_TRADE_MODE,  # Modo da Conta (DEMO, REAL)
-    ENUM_ACCOUNT_STOPOUT_MODE,  # Modo de Stop Out
-    ENUM_ACCOUNT_MARGIN_MODE,  # Modo de Cálculo de Margem
+    ENUM_POSITION_TYPE,  # Types of Positions (BUY and SELL)
+    ENUM_SYMBOL_CALC_MODE,  # Calculation Modes (FOREX, CFDs, etc.)
+    ENUM_ACCOUNT_TRADE_MODE,  # Account Mode (DEMO, REAL)
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Stop Out Mode
+    ENUM_ACCOUNT_MARGIN_MODE,  # Margin Calculation Mode
     ENUM_SYMBOL_SWAP_MODE,
-    MqlAccountInfo,  # Estrutura com Informações da Conta
+    MqlAccountInfo,  # Account Information Structure
 )
 
-# **Importações do Backtest**
+# **Backtest Imports**
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __backtest_position_check_take_profit_reached,  # Função de Verificação de Stop Loss
-    __backtest_position_open,  # Função para Abrir Posições durante o Teste
+    __backtest_position_check_take_profit_reached,  # Stop Loss Verification Function
+    __backtest_position_open,  # Position Opening Function during Backtest
 )
 
-# **Importação da Classe Account**
+# **Account Class Import**
 from algo_trading.sources.MetaTrader5_source.account.account import (
     Account,
-)  # Classe para Manipulação de Dados da Conta
+)  # Account Data Manipulation Class
 
 
-# **Fixture de Conta para os Testes**
+# **Account Fixture for Tests**
 @pytest.fixture
 def account():
     """
-    Fixture que cria uma instância de conta para os testes.
-    Simula o login em uma conta ao vivo e reinicializa a conta em modo backtest.
+    Fixture that creates an account instance for tests.
+    Simulates login to a live account and reinitializes the account in backtest mode.
     """
     account = Account()
 
-    # Simula login na conta ao vivo antes do backtest
+    # Simulates login to a live account before backtest
     account.live_account_data = MqlAccountInfo(
         login=123456,
         trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
@@ -76,10 +76,10 @@ def account():
     return account
 
 
-# **Teste 1: Posição `BUY` Atinge Take Profit**
+# **Test 1: Position `BUY` Reaches Take Profit**
 def test_buy_position_take_profit_hit(account: Account):
     """
-    Testa se uma posição `BUY` é fechada corretamente quando o preço `high` do candle atinge o take profit.
+    Tests if a `BUY` position is closed correctly when the candle's `high` price reaches the take profit.
     """
     account.login_backtest(balance=10_000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -106,13 +106,13 @@ def test_buy_position_take_profit_hit(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Abertura de posição `BUY` com take profit em 1.14
+    # Opens a `BUY` position with take profit at 1.14
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -124,21 +124,21 @@ def test_buy_position_take_profit_hit(account: Account):
 
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição `BUY` deveria estar aberta."
+    ), "The `BUY` position should be open."
 
-    # Verifica se o take profit foi atingido
+    # Verifies if the take profit was reached
     __backtest_position_check_take_profit_reached(operation_handler)
 
-    # Verifica se a posição foi fechada
+    # Verifies if the position was closed
     assert (
         len(operation_handler.account_data.positions) == 0
-    ), "A posição `BUY` deveria ter sido fechada pelo take profit."
+    ), "The `BUY` position should have been closed by the take profit."
 
 
-# **Teste 2: Posição `SELL` Atinge Take Profit**
+# **Test 2: Position `SELL` Reaches Take Profit**
 def test_sell_position_take_profit_hit(account: Account):
     """
-    Testa se uma posição `SELL` é fechada corretamente quando o preço `low` do candle atinge o take profit.
+    Tests if a `SELL` position is closed correctly when the candle's `low` price reaches the take profit.
     """
     account.login_backtest(balance=10_000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -165,13 +165,13 @@ def test_sell_position_take_profit_hit(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Abertura de posição `SELL` com take profit em 1.10
+    # Opens a `SELL` position with take profit at 1.10
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -183,21 +183,21 @@ def test_sell_position_take_profit_hit(account: Account):
 
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição `SELL` deveria estar aberta."
+    ), "The `SELL` position should be open."
 
-    # Verifica se o take profit foi atingido
+    # Verifies if the take profit was reached
     __backtest_position_check_take_profit_reached(operation_handler)
 
-    # Verifica se a posição foi fechada
+    # Verifies if the position was closed
     assert (
         len(operation_handler.account_data.positions) == 0
-    ), "A posição `SELL` deveria ter sido fechada pelo take profit."
+    ), "The `SELL` position should have been closed by the take profit."
 
 
-# **Teste 3: Posição `BUY` Não Atinge Take Profit**
+# **Test 3: Position `BUY` Does Not Reach Take Profit**
 def test_buy_position_no_take_profit(account: Account):
     """
-    Testa se uma posição `BUY` permanece aberta quando o preço `high` do candle não atinge o take profit.
+    Tests if a `BUY` position remains open when the candle's `high` price does not reach the take profit.
     """
     account.login_backtest(balance=10_000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -224,13 +224,13 @@ def test_buy_position_no_take_profit(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Abertura de posição `BUY` com take profit em 1.14
+    # Opens a `BUY` position with take profit at 1.14
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -240,19 +240,19 @@ def test_buy_position_no_take_profit(account: Account):
         comment="Test Buy Position TP",
     )
 
-    # Verifica se o take profit foi atingido
+    # Verifies if the take profit was reached
     __backtest_position_check_take_profit_reached(operation_handler)
 
-    # Verifica se a posição permanece aberta
+    # Verifies if the position remains open
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição `BUY` não deveria ter sido fechada."
+    ), "The `BUY` position should not have been closed."
 
 
-# **Teste 4: Posição `SELL` Não Atinge Take Profit**
+# **Test 4: Position `SELL` Does Not Reach Take Profit**
 def test_sell_position_no_take_profit(account: Account):
     """
-    Testa se uma posição `SELL` permanece aberta quando o preço `low` do candle não atinge o take profit.
+    Tests if a `SELL` position remains open when the candle's `low` price does not reach the take profit.
     """
     account.login_backtest(balance=10_000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -279,13 +279,13 @@ def test_sell_position_no_take_profit(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Abertura de posição `SELL` com take profit em 1.10
+    # Opens a `SELL` position with take profit at 1.10
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -295,19 +295,19 @@ def test_sell_position_no_take_profit(account: Account):
         comment="Test Sell Position TP",
     )
 
-    # Verifica se o take profit foi atingido
+    # Verifies if the take profit was reached
     __backtest_position_check_take_profit_reached(operation_handler)
 
-    # Verifica se a posição permanece aberta
+    # Verifies if the position remains open
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição `SELL` não deveria ter sido fechada."
+    ), "The `SELL` position should not have been closed."
 
 
-# **Teste 5: Posição Sem Take Profit Configurado**
+# **Test 5: Position Without Take Profit Configured**
 def test_position_without_take_profit(account: Account):
     """
-    Testa se uma posição permanece aberta quando não há um take profit configurado.
+    Tests if a position remains open when there is no take profit configured.
     """
     account.login_backtest(balance=10_000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -334,13 +334,13 @@ def test_position_without_take_profit(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Abertura de posição `BUY` sem take profit
+    # Opens a `BUY` position without take profit
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -350,19 +350,19 @@ def test_position_without_take_profit(account: Account):
         comment="Test Buy Position Without TP",
     )
 
-    # Verifica se o take profit foi atingido
+    # Verifies if the take profit was reached
     __backtest_position_check_take_profit_reached(operation_handler)
 
-    # Verifica se a posição permanece aberta
+    # Verifies if the position remains open
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição `BUY` não deveria ser fechada, pois não há take profit configurado."
+    ), "The `BUY` position should not have been closed, as there is no take profit configured."
 
 
-# **Teste 6: Posição `BUY` com Take Profit Atingido Exatamente no `high`**
+# **Test 6: Position `BUY` with Take Profit Reached Exactly at the `high`**
 def test_buy_position_take_profit_exact_high(account: Account):
     """
-    Testa se uma posição `BUY` é fechada corretamente quando o preço `high` do candle é exatamente igual ao take profit.
+    Tests if a `BUY` position is closed correctly when the candle's `high` price is exactly equal to the take profit.
     """
     account.login_backtest(balance=10_000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -389,13 +389,13 @@ def test_buy_position_take_profit_exact_high(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Abertura de posição `BUY` com take profit em 1.14
+    # Opens a `BUY` position with take profit at 1.14
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -405,19 +405,19 @@ def test_buy_position_take_profit_exact_high(account: Account):
         comment="Test Buy Position Exact TP",
     )
 
-    # Verifica se o take profit foi atingido
+    # Verifies if the take profit was reached
     __backtest_position_check_take_profit_reached(operation_handler)
 
-    # Verifica se a posição foi fechada
+    # Verifies if the position was closed
     assert (
         len(operation_handler.account_data.positions) == 0
-    ), "A posição `BUY` deveria ter sido fechada pelo take profit."
+    ), "The `BUY` position should have been closed by the take profit."
 
 
-# **Teste 7: Posição `SELL` com Take Profit Atingido Exatamente no `low`**
+# **Test 7: Position `SELL` with Take Profit Reached Exactly at the `low`**
 def test_sell_position_take_profit_exact_low(account: Account):
     """
-    Testa se uma posição `SELL` é fechada corretamente quando o preço `low` do candle é exatamente igual ao take profit.
+    Tests if a `SELL` position is closed correctly when the candle's `low` price is exactly equal to the take profit.
     """
     account.login_backtest(balance=10_000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -444,13 +444,13 @@ def test_sell_position_take_profit_exact_low(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Abertura de posição `SELL` com take profit em 1.10
+    # Opens a `SELL` position with take profit at 1.10
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -460,19 +460,19 @@ def test_sell_position_take_profit_exact_low(account: Account):
         comment="Test Sell Position Exact TP",
     )
 
-    # Verifica se o take profit foi atingido
+    # Verifies if the take profit was reached
     __backtest_position_check_take_profit_reached(operation_handler)
 
-    # Verifica se a posição foi fechada
+    # Verifies if the position was closed
     assert (
         len(operation_handler.account_data.positions) == 0
-    ), "A posição `SELL` deveria ter sido fechada pelo take profit."
+    ), "The `SELL` position should have been closed by the take profit."
 
 
-# **Teste 8: Posição `BUY` com Take Profit Não Atingido (`high` Abaixo do TP)**
+# **Test 8: Position `BUY` with Take Profit Not Hit (`high` Below the TP)**
 def test_buy_position_take_profit_not_hit(account: Account):
     """
-    Testa se uma posição `BUY` permanece aberta quando o preço `high` do candle está abaixo do take profit.
+    Tests if a `BUY` position remains open when the candle's `high` price is below the take profit.
     """
     account.login_backtest(balance=10_000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -499,13 +499,13 @@ def test_buy_position_take_profit_not_hit(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Abertura de posição `BUY` com take profit em 1.13
+    # Opens a `BUY` position with take profit at 1.13
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -515,19 +515,19 @@ def test_buy_position_take_profit_not_hit(account: Account):
         comment="Test Buy Position TP Not Hit",
     )
 
-    # Verifica se o take profit foi atingido
+    # Verifies if the take profit was reached
     __backtest_position_check_take_profit_reached(operation_handler)
 
-    # Verifica se a posição permanece aberta
+    # Verifies if the position remains open
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição `BUY` não deveria ter sido fechada."
+    ), "The `BUY` position should not have been closed."
 
 
-# **Teste 9: Posição `SELL` com Take Profit Não Atingido (`low` Acima do TP)**
+# **Test 9: Position `SELL` with Take Profit Not Hit (`low` Above the TP)**
 def test_sell_position_take_profit_not_hit(account: Account):
     """
-    Testa se uma posição `SELL` permanece aberta quando o preço `low` do candle está acima do take profit.
+    Tests if a `SELL` position remains open when the candle's `low` price is above the take profit.
     """
     account.login_backtest(balance=10_000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -554,13 +554,13 @@ def test_sell_position_take_profit_not_hit(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Abertura de posição `SELL` com take profit em 1.11
+    # Opens a `SELL` position with take profit at 1.11
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -570,19 +570,19 @@ def test_sell_position_take_profit_not_hit(account: Account):
         comment="Test Sell Position TP Not Hit",
     )
 
-    # Verifica se o take profit foi atingido
+    # Verifies if the take profit was reached
     __backtest_position_check_take_profit_reached(operation_handler)
 
-    # Verifica se a posição permanece aberta
+    # Verifies if the position remains open
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "A posição `SELL` não deveria ter sido fechada."
+    ), "The `SELL` position should not have been closed."
 
 
-# **Teste 10: Múltiplas Posições com Take Profit**
+# **Test 10: Multiple Positions with Take Profit**
 def test_multiple_positions_take_profit(account: Account):
     """
-    Testa o comportamento com múltiplas posições abertas com diferentes take profits.
+    Tests the behavior with multiple positions opened with different take profits.
     """
     account.login_backtest(balance=10_000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -609,13 +609,13 @@ def test_multiple_positions_take_profit(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Abertura de múltiplas posições com diferentes take profits
+    # Opens multiple positions with different take profits
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -637,14 +637,14 @@ def test_multiple_positions_take_profit(account: Account):
         symbol=symbol,
         order_type=ENUM_POSITION_TYPE.POSITION_TYPE_BUY,
         volume=1,
-        profit_price=1.17,  # Não deve ser atingido
+        profit_price=1.17,  # Should not be reached
         comment="Test Buy Position TP 3",
     )
 
-    # Verifica se os take profits foram atingidos
+    # Verifies if the take profits were reached
     __backtest_position_check_take_profit_reached(operation_handler)
 
-    # Verifica se apenas as posições com take profit atingido foram fechadas
+    # Verifies if only the positions with take profit reached were closed
     assert (
         len(operation_handler.account_data.positions) == 1
-    ), "Apenas a posição `Test Buy Position TP 3` deveria permanecer aberta."
+    ), "Only the `Test Buy Position TP 3` position should remain open."

@@ -204,35 +204,35 @@ def test_default_values():
 
 # Testes para validate_mt5_ulong_size -------------------------------------------------------------
 def test_validate_mt5_ulong_size_valid():
-    # Testar valores válidos dentro do limite permitido
-    assert validate_mt5_ulong_size(0) is None  # Limite inferior válido
-    assert validate_mt5_ulong_size(2**63 - 1) is None  # Próximo ao limite superior
+    # Test valid values within the allowed limit
+    assert validate_mt5_ulong_size(0) is None  # Valid lower limit
+    assert validate_mt5_ulong_size(2**63 - 1) is None  # Close to upper limit
 
 
 def test_validate_mt5_ulong_size_negative():
-    # Testar valores negativos
+    # Test negative values
     with pytest.raises(ValueError, match="The count must be equal or higher to zero"):
         validate_mt5_ulong_size(-1)
 
 
 def test_validate_mt5_ulong_size_too_large():
-    # Testar valores acima do limite permitido para ulong
+    # Test values above the allowed limit for ulong
     with pytest.raises(ValueError, match="Python int too large to convert MQL5 long"):
         validate_mt5_ulong_size(2**64)
 
 
-# Testes para __validate_int_size no contexto de MqlTradeRequest
+# Test for __validate_int_size in the context of MqlTradeRequest
 def test_int_size_validation_with_valid_values():
-    # Testar criação de MqlTradeRequest com valores válidos
+    # Test creation of MqlTradeRequest with valid values
     trade_request = MqlTradeRequest(
         action=ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL,
         symbol="EURUSD",
         volume=1.0,
         price=1.12345,
         type=ENUM_ORDER_TYPE.ORDER_TYPE_BUY,
-        magic=123,  # Valor válido
-        order=0,  # Limite inferior válido
-        deviation=100,  # Valor válido
+        magic=123,  # Valid value
+        order=0,  # Valid lower limit
+        deviation=100,  # Valid value
     )
     assert trade_request.magic == 123
     assert trade_request.order == 0
@@ -240,7 +240,7 @@ def test_int_size_validation_with_valid_values():
 
 
 def test_int_size_validation_with_negative_values():
-    # Testar valores negativos
+    # Test negative values
     with pytest.raises(ValueError, match="The count must be equal or higher to zero"):
         MqlTradeRequest(
             action=ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL,
@@ -248,12 +248,12 @@ def test_int_size_validation_with_negative_values():
             volume=1.0,
             price=1.12345,
             type=ENUM_ORDER_TYPE.ORDER_TYPE_BUY,
-            magic=-123,  # Valor inválido
+            magic=-123,  # Invalid value
         )
 
 
 def test_int_size_validation_with_large_values():
-    # Testar valores muito grandes
+    # Test large values
     with pytest.raises(ValueError, match="Python int too large to convert MQL5 long"):
         MqlTradeRequest(
             action=ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL,
@@ -261,12 +261,12 @@ def test_int_size_validation_with_large_values():
             volume=1.0,
             price=1.12345,
             type=ENUM_ORDER_TYPE.ORDER_TYPE_BUY,
-            magic=2**64,  # Valor muito grande
+            magic=2**64,  # Invalid value
         )
 
 
 def test_int_size_validation_default_values():
-    # Testar criação de MqlTradeRequest sem valores explícitos para campos opcionais
+    # Test creation of MqlTradeRequest without explicit values for optional fields
     trade_request = MqlTradeRequest(
         action=ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL,
         symbol="EURUSD",
@@ -274,12 +274,12 @@ def test_int_size_validation_default_values():
         price=1.12345,
         type=ENUM_ORDER_TYPE.ORDER_TYPE_BUY,
     )
-    assert trade_request.magic == 0  # Valor padrão válido
-    assert trade_request.order is None  # Valor padrão None não causa validação
+    assert trade_request.magic == 0  # Default value valid
+    assert trade_request.order is None  # Default value None does not cause validation
 
 
 def test_int_size_validation_boundary_values():
-    # Testar valores próximos aos limites
+    # Test values close to the limits
     trade_request = MqlTradeRequest(
         action=ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL,
         symbol="EURUSD",
@@ -292,20 +292,20 @@ def test_int_size_validation_boundary_values():
 
 
 def test_int_size_validation_zero_value():
-    # Testar valores zero como válidos
+    # Test zero values as valid
     trade_request = MqlTradeRequest(
         action=ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL,
         symbol="EURUSD",
         volume=1.0,
         price=1.12345,
         type=ENUM_ORDER_TYPE.ORDER_TYPE_BUY,
-        magic=0,  # Valor válido
+        magic=0,  # Valid value
     )
     assert trade_request.magic == 0
 
 
 def test_valid_expiration_for_order_time_specified():
-    # Teste válido com tipo de tempo específico e expiration fornecido
+    # Test valid with type time specified and expiration provided
     trade_request = MqlTradeRequest(
         action=ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL,
         symbol="EURUSD",
@@ -320,7 +320,7 @@ def test_valid_expiration_for_order_time_specified():
 
 
 def test_valid_expiration_for_order_time_specified_day():
-    # Teste válido com ORDER_TIME_SPECIFIED_DAY e expiration fornecido
+    # Test valid with ORDER_TIME_SPECIFIED_DAY and expiration provided
     trade_request = MqlTradeRequest(
         action=ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL,
         symbol="EURUSD",
@@ -335,7 +335,7 @@ def test_valid_expiration_for_order_time_specified_day():
 
 
 def test_invalid_missing_expiration_for_order_time_specified():
-    # Teste inválido quando ORDER_TIME_SPECIFIED é usado sem expiration
+    # Test invalid when ORDER_TIME_SPECIFIED is used without expiration
     with pytest.raises(ValueError, match="Expiration must be provided for specified order time types."):
         MqlTradeRequest(
             action=ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL,
@@ -349,7 +349,7 @@ def test_invalid_missing_expiration_for_order_time_specified():
 
 
 def test_invalid_missing_expiration_for_order_time_specified_day():
-    # Teste inválido quando ORDER_TIME_SPECIFIED_DAY é usado sem expiration
+    # Test invalid when ORDER_TIME_SPECIFIED_DAY is used without expiration
     with pytest.raises(ValueError, match="Expiration must be provided for specified order time types."):
         MqlTradeRequest(
             action=ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL,
@@ -363,7 +363,7 @@ def test_invalid_missing_expiration_for_order_time_specified_day():
 
 
 def test_invalid_expiration_without_order_time_specified():
-    # Teste inválido quando expiration é fornecido sem especificar ORDER_TIME_SPECIFIED
+    # Test invalid when expiration is provided without specifying ORDER_TIME_SPECIFIED
     with pytest.raises(ValueError, match="OrderTypeTime must be specified when the expiration is set."):
         MqlTradeRequest(
             action=ENUM_TRADE_REQUEST_ACTIONS.TRADE_ACTION_DEAL,
@@ -372,7 +372,7 @@ def test_invalid_expiration_without_order_time_specified():
             price=1.12345,
             type=ENUM_ORDER_TYPE.ORDER_TYPE_BUY,
             expiration=datetime.now(timezone.utc) + timedelta(days=1),
-            type_time=ENUM_ORDER_TYPE_TIME.ORDER_TIME_GTC,  # Não é um tipo específico que exige expiration
+            type_time=ENUM_ORDER_TYPE_TIME.ORDER_TIME_GTC,  # It is not a specific type that requires expiration
         )
 
 

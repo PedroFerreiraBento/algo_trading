@@ -1,33 +1,33 @@
-# **Importações de Bibliotecas e Dependências Necessárias**
-import pytest  # Framework de testes
-from unittest.mock import patch  # Ferramenta de mock para simular chamadas de funções e métodos
+# **Importations of Libraries and Dependencies**
+import pytest  # Framework of tests
+from unittest.mock import patch  # Tool for mocking function and method calls
 
-# **Importação da classe Account (gerenciamento de contas do MetaTrader 5)**
+# **Importation of Account class (MetaTrader 5 account management)**
 from algo_trading.sources.MetaTrader5_source.account.account import Account
 
-# **Importações de classes, enums e funções do MetaTrader 5**
+# **Importation of classes, enums and functions of MetaTrader 5**
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    MqlAccountInfo,  # Modelo de informações da conta (ex.: saldo, alavancagem, lucro)
-    ENUM_ACCOUNT_TRADE_MODE,  # Enum para o modo de operação da conta (real/demo)
-    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum para o modo de stopout (percentual/valor fixo)
-    ENUM_ACCOUNT_MARGIN_MODE,  # Enum para o modo de cálculo de margem (hedge/redução)
+    MqlAccountInfo,  # Account information model (e.g.: balance, leverage, profit)
+    ENUM_ACCOUNT_TRADE_MODE,  # Enum for account operation mode (real/demo)
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum for stopout mode (percent/fix value)
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum for margin calculation mode (hedge/reduction)
 )
 
-# **Importação das funções de backtest**
+# **Importation of backtest functions**
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __process_account_new_candle_event,  # Função principal a ser testada
+    __process_account_new_candle_event,  # Main function to be tested
 )
 
-# **Fixture de Conta para os Testes**
+# **Account fixture for tests**
 @pytest.fixture
 def account():
     """
-    Fixture que cria uma instância de conta para os testes.
-    Simula o login em uma conta ao vivo e reinicializa a conta em modo backtest.
+    Fixture that creates an account instance for testing.
+    Simulates login to a live account and reinitializes the account in backtest mode.
     """
     account = Account()
 
-    # Simula login na conta ao vivo antes do backtest
+    # Simulates login to a live account before backtesting
     account.live_account_data = MqlAccountInfo(
         login=123456,
         trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
@@ -62,59 +62,59 @@ def account():
     return account
 
 
-# **Teste 1: Verificação da Ordem de Execução das Funções Internas**
+# **Test 1: Verification of Function Execution Order**
 def test_process_account_new_candle_event_execution_order(account: Account):
     """
-    Testa a ordem de execução das funções internas na função `__process_account_new_candle_event`.
+    Tests the order of execution of internal functions in the `__process_account_new_candle_event` function.
 
-    Objetivo:
-    - Garantir que as funções internas são chamadas na ordem correta:
+    Objective:
+    - Ensure that internal functions are called in the correct order:
       1. `__process_account_after_candle_event`
       2. `__process_account_update_data`
     """
-    account.login_backtest(balance=10000, leverage=100)  # Inicializa a conta com saldo e alavancagem
+    account.login_backtest(balance=10000, leverage=100)  # Initializes the account with balance and leverage
     operation_handler = account.backtest_account_data.operation
 
-    # **Mock das funções internas**
+    # **Mock of internal functions**
     with patch("algo_trading.sources.MetaTrader5_source.backtest.backtest.__process_account_after_candle_event", autospec=True) as mock_after_candle_event, \
          patch("algo_trading.sources.MetaTrader5_source.backtest.backtest.__process_account_update_data", autospec=True) as mock_update_data:
 
-        # **Evitar execução real**
+        # **Avoid real execution**
         mock_after_candle_event.side_effect = None
         mock_update_data.side_effect = None
 
-        # **Chamada da função principal**
+        # **Function call**
         __process_account_new_candle_event(operation_handler)
 
-        # **Verificação da ordem de execução das funções internas**
+        # **Verification of function execution order**
         calls = [
             mock_after_candle_event.mock_calls[0],
             mock_update_data.mock_calls[0],
         ]
 
-        # **Confirmação se as funções foram chamadas na ordem correta**
-        assert calls == sorted(calls, key=lambda x: x[1]), "As funções não foram chamadas na ordem esperada."
+        # **Confirmation if functions were called in the correct order**
+        assert calls == sorted(calls, key=lambda x: x[1]), "Functions were not called in the expected order."
 
 
-# **Teste 2: Verificação de Chamadas das Funções Internas**
+# **Test 2: Verification of Function Calls**
 def test_process_account_new_candle_event_functions_called(account: Account):
     """
-    Testa se todas as funções internas são chamadas na função `__process_account_new_candle_event`.
+    Tests if all internal functions are called in the `__process_account_new_candle_event` function.
 
-    Objetivo:
-    - Garantir que cada função interna é chamada pelo menos uma vez.
+    Objective:
+    - Ensure that each internal function is called at least once.
     """
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
 
-    # **Mock das funções internas**
+    # **Mock of internal functions**
     with patch("algo_trading.sources.MetaTrader5_source.backtest.backtest.__process_account_after_candle_event", autospec=True) as mock_after_candle_event, \
          patch("algo_trading.sources.MetaTrader5_source.backtest.backtest.__process_account_update_data", autospec=True) as mock_update_data:
 
-        # **Chamada da função principal**
+        # **Function call**
         __process_account_new_candle_event(operation_handler)
 
-        # **Verificação de chamadas**
-        mock_after_candle_event.assert_called_once(), "A função `__process_account_after_candle_event` não foi chamada."
-        mock_update_data.assert_called_once(), "A função `__process_account_update_data` não foi chamada."
+        # **Verification of calls**
+        mock_after_candle_event.assert_called_once(), "The function `__process_account_after_candle_event` was not called."
+        mock_update_data.assert_called_once(), "The function `__process_account_update_data` was not called."
 

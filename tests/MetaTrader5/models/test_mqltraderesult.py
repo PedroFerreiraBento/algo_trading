@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from algo_trading.sources.MetaTrader5_source.models.metatrader import MqlTradeResult, ENUM_TRADE_RETCODE  # Substitua pelo caminho correto do módulo
+from algo_trading.sources.MetaTrader5_source.models.metatrader import MqlTradeResult, ENUM_TRADE_RETCODE
 
 
 class MockOrderSendResult:

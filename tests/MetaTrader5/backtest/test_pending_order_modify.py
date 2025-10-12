@@ -1,54 +1,54 @@
-# **Bibliotecas de Testes**
-import pytest  # Biblioteca para criação e execução de testes unitários.
+# **Test Libraries**
+import pytest  # Library for creating and executing unit tests.
 
-# **Bibliotecas de Datas e Horários**
+# **Date and Time Libraries**
 from datetime import (
     datetime,
     timezone,
     timedelta,
-)  # Utilizadas para definir timestamps com fuso horário UTC e manipulação de datas/horas.
+)  # Utilized to define timestamps with UTC timezone and date and time manipulation.
 
-# **Modelos e Enums do MetaTrader5**
+# **MetaTrader5 Models and Enums**
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    MqlAccountInfo,  # Modelo que contém informações da conta de trading (e.g., saldo, margem, nome da conta).
-    MqlTradeOrder,  # Modelo que representa uma ordem de trade pendente ou executada.
-    ENUM_ACCOUNT_TRADE_MODE,  # Enum que define o modo de operação da conta (e.g., demo, real).
-    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum para o modo de stop-out (e.g., percentual ou valor fixo).
-    ENUM_ACCOUNT_MARGIN_MODE,  # Enum para definir o tipo de margem da conta (e.g., hedge, netting).
-    ENUM_ORDER_TYPE_MARKET,  # Enum que define os tipos de ordens a mercado (e.g., BUY/SELL).
-    ENUM_ORDER_TYPE_PENDING,  # Enum que define os tipos de ordens pendentes (e.g., BUY LIMIT, SELL STOP).
-    ENUM_ORDER_TYPE_TIME,  # Enum para os tipos de expiração de ordens (e.g., GTC, tempo especificado).
+    MqlAccountInfo,  # Model that contains trading account information (e.g., balance, margin, account name).
+    MqlTradeOrder,  # Model that represents a pending or executed trade order.
+    ENUM_ACCOUNT_TRADE_MODE,  # Enum that defines the trading account mode (e.g., demo, real).
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum for stop-out mode (e.g., percentage or fixed value).
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum for defining the type of margin of the account (e.g., hedge, netting).
+    ENUM_ORDER_TYPE_MARKET,  # Enum that defines market order types (e.g., BUY/SELL).
+    ENUM_ORDER_TYPE_PENDING,  # Enum that defines pending order types (e.g., BUY LIMIT, SELL STOP).
+    ENUM_ORDER_TYPE_TIME,  # Enum for order expiration types (e.g., GTC, specified time).
     ENUM_SYMBOL_CALC_MODE,
     ENUM_SYMBOL_SWAP_MODE,
     ENUM_ORDER_TYPE,
 )
 
-# **Funções de Backtest**
+# **Backtest Functions**
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __backtest_pending_order_open,  # Função que simula a abertura de ordens pendentes em modo de backtest.
-    __backtest_pending_order_modify,  # Função que simula a modificação de ordens pendentes em modo de backtest.
+    __backtest_pending_order_open,  # Function that simulates the opening of pending orders in backtest mode.
+    __backtest_pending_order_modify,  # Function that simulates the modification of pending orders in backtest mode.
 )
 
-# **Classe de Conta**
+# **Account Class**
 from algo_trading.sources.MetaTrader5_source.account.account import (
     Account,
-)  # Classe `Account` utilizada para login e gerenciamento das informações de conta de trading.
+)  # The `Account` class is used for login and management of trading account information.
 
 import pandas as pd
 
 
 @pytest.fixture
 def account():
-    """Fixture que cria uma instância de conta para os testes.
+    """Fixture that creates an account instance for testing.
 
-    Simula o login em uma conta ao vivo.
+    Simulates login to a live account before backtesting.
 
     Returns:
-        Account: Instância de conta com dados configurados.
+        Account: Account instance with configured data."
     """
     account = Account()
 
-    # Simula login na conta ao vivo antes do backtest
+    # Simulates login to a live account before backtesting
     account.live_account_data = MqlAccountInfo(
         login=123456,
         trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
@@ -85,21 +85,20 @@ def account():
 
 def test_backtest_modify_pending_order(account: Account):
     """
-    Testa a função `__backtest_modify_pending_order` para verificar se uma ordem pendente
-    é modificada corretamente.
+    Tests the `__backtest_modify_pending_order` function to verify if a pending order is modified correctly.
 
-    Verifica:
-    1. Se a ordem pendente é selecionada e modificada com sucesso.
-    2. Se os atributos principais da ordem (preço de entrada, stop-loss, take-profit, expiração, comentário) são atualizados.
+    Verifies:
+    1. If the pending order is selected and modified successfully.
+    2. If the main attributes of the order (entry price, stop-loss, take-profit, expiration, comment) are updated.
     """
-    # **Configuração da conta de backtest**
+    # **Backtest Account Configuration**
     account.login_backtest(
         balance=5000, leverage=100
-    )  # Inicia a conta com saldo de $5.000 e alavancagem 1:100
-    account.backtest_account_data.magic_number = 123456  # Define o "magic number" da conta para identificar operações automáticas
+    )  # Initializes the account with a balance of $5.000 and leverage 1:100
+    account.backtest_account_data.magic_number = 123456  # Defines the "magic number" of the account to identify automatic operations
     account.backtest_account_data.type_filling = (
         ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY
-    )  # Tipo de execução de ordens
+    )  # Order execution type
     symbol = "EURUSD"
 
     last_candle_time = datetime(2025, 1, 10, 12, 0, tzinfo=timezone.utc)
@@ -123,26 +122,26 @@ def test_backtest_modify_pending_order(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # **Parâmetros da ordem pendente inicial**
+    # **Initial Pending Order Parameters**
     initial_order_type = (
         ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_SELL_LIMIT
-    )  # Ordem pendente do tipo SELL LIMIT
-    initial_volume = 1.0  # Volume da ordem em lotes
-    initial_price = 1.1300  # Preço de execução desejado
-    initial_stop_price = 1.1350  # Stop-loss inicial
-    initial_profit_price = 1.1250  # Take-profit inicial
+    )  # Pending order type SELL LIMIT
+    initial_volume = 1.0  # Order volume in lots
+    initial_price = 1.1300  # Desired execution price
+    initial_stop_price = 1.1350  # Initial stop-loss
+    initial_profit_price = 1.1250  # Initial take-profit
     initial_expiration = last_candle_time + timedelta(
         days=2
-    )  # Expiração inicial da ordem pendente
+    )  # Expiration of the initial pending order
     initial_comment = "Initial pending order"
 
-    # **Abertura da ordem pendente inicial**
+    # **Initial Pending Order Opening**
     __backtest_pending_order_open(
         operation_class=account.backtest_account_data.operation,
         symbol=symbol,
@@ -155,18 +154,18 @@ def test_backtest_modify_pending_order(account: Account):
         comment=initial_comment,
     )
 
-    # **Obter a ordem pendente criada**
+    # **Get the created pending order**
     pending_order: MqlTradeOrder = account.backtest_account_data.orders[-1]
-    ticket = pending_order.ticket  # ID da ordem pendente
+    ticket = pending_order.ticket  # ID of the pending order
 
-    # **Novos parâmetros para modificar a ordem**
-    new_price = 1.14  # Novo preço de execução
-    new_stop_price = 1.1530  # Novo stop-loss
-    new_profit_price = 0.9  # Novo take-profit
-    new_expiration = last_candle_time + timedelta(days=3)  # Nova data de expiração
+    # **New parameters to modify the order**
+    new_price = 1.14  # New execution price
+    new_stop_price = 1.1530  # New stop-loss
+    new_profit_price = 0.9  # New take-profit
+    new_expiration = last_candle_time + timedelta(days=3)  # New expiration date
     new_comment = "Modified pending order"
 
-    # **Modificar a ordem pendente**
+    # **Modify the pending order**
     __backtest_pending_order_modify(
         operation_class=account.backtest_account_data.operation,
         ticket=ticket,
@@ -177,38 +176,38 @@ def test_backtest_modify_pending_order(account: Account):
         comment=new_comment,
     )
 
-    # **Verificações da modificação**
+    # **Verification of the modification**
     assert (
         pending_order.price_open == new_price
-    ), "O preço de execução não foi atualizado corretamente."
+    ), "The execution price was not updated correctly."
     assert (
         pending_order.sl == new_stop_price
-    ), "O stop-loss não foi atualizado corretamente."
+    ), "The stop-loss was not updated correctly."
     assert (
         pending_order.tp == new_profit_price
-    ), "O take-profit não foi atualizado corretamente."
+    ), "The take-profit was not updated correctly."
     assert (
         pending_order.time_expiration == new_expiration
-    ), "A data de expiração não foi atualizada corretamente."
+    ), "The expiration date was not updated correctly."
     assert (
         pending_order.comment == new_comment
-    ), "O comentário da ordem não foi atualizado corretamente."
+    ), "The order comment was not updated correctly."
     assert (
         pending_order.type_time == ENUM_ORDER_TYPE_TIME.ORDER_TIME_SPECIFIED
-    ), "O tipo de tempo da ordem não foi atualizado corretamente para 'ORDER_TIME_SPECIFIED'."
+    ), "The order time type was not updated correctly to 'ORDER_TIME_SPECIFIED'."
     assert (
         pending_order.magic == account.backtest_account_data.magic_number
-    ), "O magic number da ordem não foi mantido corretamente."
+    ), "The magic number of the order was not maintained correctly."
 
 
 def test_validate_prices_buy_and_sell(account: Account):
     """
-    Testa se os preços, stop loss (sl) e take profit (tp) são validados corretamente
-    para ordens de compra (BUY) e venda (SELL).
+    Tests if the prices, stop loss (sl) and take profit (tp) are validated correctly
+    for buy (BUY) and sell (SELL) orders.
     """
     account.login_backtest(
         balance=5000, leverage=100
-    )  # Inicia a conta com saldo de $5.000 e alavancagem 1:100
+    )  # Initializes the account with a balance of $5.000 and leverage 1:100
     operation_handler = account.backtest_account_data.operation
     symbol = "EURUSD"
 
@@ -233,20 +232,20 @@ def test_validate_prices_buy_and_sell(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # Configuração inicial
+    # Initial configuration
     price = 1.1300
     sl_buy = 1.1200
     tp_buy = 1.1400
     sl_sell = 1.1400
     tp_sell = 1.1200
 
-    # Ordem de compra (BUY)
+    # Buy order
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -259,7 +258,7 @@ def test_validate_prices_buy_and_sell(account: Account):
         comment="Buy order test",
     )
 
-    # Ordem de venda (SELL)
+    # Sell order
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -272,25 +271,25 @@ def test_validate_prices_buy_and_sell(account: Account):
         comment="Sell order test",
     )
 
-    # Obter as ordens pendentes criadas
+    # Get the created pending orders
     buy_order = account.backtest_account_data.orders[-2]
     sell_order = account.backtest_account_data.orders[-1]
 
-    # Valida os preços das ordens de compra e venda
-    assert buy_order.sl == sl_buy, "Stop loss da ordem de compra está incorreto."
-    assert buy_order.tp == tp_buy, "Take profit da ordem de compra está incorreto."
-    assert sell_order.sl == sl_sell, "Stop loss da ordem de venda está incorreto."
-    assert sell_order.tp == tp_sell, "Take profit da ordem de venda está incorreto."
+    # Validate the prices of the buy and sell orders
+    assert buy_order.sl == sl_buy, "Stop loss of the buy order is incorrect."
+    assert buy_order.tp == tp_buy, "Take profit of the buy order is incorrect."
+    assert sell_order.sl == sl_sell, "Stop loss of the sell order is incorrect."
+    assert sell_order.tp == tp_sell, "Take profit of the sell order is incorrect."
 
 
 def test_validate_invalid_prices(account: Account):
     """
-    Testa se a validação levanta exceções para configurações de preços inválidos,
-    incluindo stop loss (sl) e take profit (tp).
+    Tests if the validation raises exceptions for invalid price configurations,
+    including stop loss (sl) and take profit (tp).
     """
     account.login_backtest(
         balance=5000, leverage=100
-    )  # Inicia a conta com saldo de $5.000 e alavancagem 1:100
+    )  # Initializes the account with a balance of $5.000 and leverage 1:100
     operation_handler = account.backtest_account_data.operation
     symbol = "EURUSD"
 
@@ -315,16 +314,16 @@ def test_validate_invalid_prices(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new record with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     account.backtest_account_data.operation.backtest_symbols_data = pd.concat(
         [account.backtest_account_data.operation.backtest_symbols_data, new_row]
     )
 
-    # Configurações inválidas para teste
+    # Invalid configurations for testing
     invalid_price = 1.1300
 
-    # Ordem de compra (BUY) com stop loss inválido (maior que o preço)
+    # Buy order with invalid stop loss (greater than the price)
     with pytest.raises(ValueError, match="Invalid stop loss"):
         __backtest_pending_order_open(
             operation_class=operation_handler,
@@ -338,7 +337,7 @@ def test_validate_invalid_prices(account: Account):
             comment="Invalid buy order (SL)",
         )
 
-    # Ordem de compra (BUY) com take profit inválido (menor que o preço)
+    # Buy order with invalid take profit (less than the price)
     with pytest.raises(ValueError, match="Invalid take profit"):
         __backtest_pending_order_open(
             operation_class=operation_handler,
@@ -352,7 +351,7 @@ def test_validate_invalid_prices(account: Account):
             comment="Invalid buy order (TP)",
         )
 
-    # Ordem de venda (SELL) com stop loss inválido (menor que o preço)
+    # Sell order with invalid stop loss (less than the price)
     with pytest.raises(ValueError, match="Invalid stop loss"):
         __backtest_pending_order_open(
             operation_class=operation_handler,
@@ -366,7 +365,7 @@ def test_validate_invalid_prices(account: Account):
             comment="Invalid sell order (SL)",
         )
 
-    # Ordem de venda (SELL) com take profit inválido (maior que o preço)
+    # Sell order with invalid take profit (greater than the price)
     with pytest.raises(ValueError, match="Invalid take profit"):
         __backtest_pending_order_open(
             operation_class=operation_handler,

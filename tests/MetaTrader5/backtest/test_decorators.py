@@ -1,45 +1,45 @@
-# **Bibliotecas de Teste**
-import pytest  # Biblioteca de testes unitários.
-from unittest.mock import patch  # Utilizado para criar patches nos testes.
+# **Test Libraries**
+import pytest  # Unit testing library.
+from unittest.mock import patch  # Used to create patches in tests.
 
-# **Modelos e Enums do MetaTrader5**
+# **MetaTrader5 Models and Enums**
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    MqlAccountInfo,  # Modelo que representa informações sobre a conta de trading.
-    ENUM_ACCOUNT_TRADE_MODE,  # Enum que indica o modo de operação da conta (real, demo, etc.).
-    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum que indica o modo de stop-out (percentual ou valor fixo).
-    ENUM_ACCOUNT_MARGIN_MODE,  # Enum que define o tipo de margem da conta (hedge, netting, etc.).
-    ENUM_ORDER_TYPE_MARKET,  # Enum para ordens de mercado (e.g., BUY/SELL).
-    ENUM_ORDER_TYPE_PENDING,  # Enum para ordens pendentes (e.g., BUY LIMIT, SELL STOP).
+    MqlAccountInfo,  # Model representing trading account information.
+    ENUM_ACCOUNT_TRADE_MODE,  # Enum indicating the trading account mode (live, demo, etc.).
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum indicating the stop-out mode (percent or fixed value).
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum defining the type of margin of the account (hedge, netting, etc.).
+    ENUM_ORDER_TYPE_MARKET,  # Enum for market orders (e.g., BUY/SELL).
+    ENUM_ORDER_TYPE_PENDING,  # Enum for pending orders (e.g., BUY LIMIT, SELL STOP).
 )
 
-# **Classe de Conta**
+# **Account Class**
 from algo_trading.sources.MetaTrader5_source.account.account import (
     Account,
-)  # Classe `Account` para login e gerenciamento de informações da conta de trading.
+)  # Class `Account` for login and management of trading account information.
 
-# **Decorators e Funções de Backtest**
+# **Decorators and Backtest Functions**
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    decorator_backtest_position_open,  # Decorator que redireciona a função para `__backtest_position_open` no modo de backtest.
-    decorator_backtest_pending_order_open,  # Decorator que redireciona a função para `__backtest_pending_order_open`.
-    decorator_backtest_position_modify,  # Decorator que redireciona para `__backtest_position_modify`.
-    decorator_backtest_pending_order_modify,  # Decorator que redireciona para `__backtest_pending_order_modify`.
-    decorator_backtest_position_close,  # Decorator que redireciona para `__backtest_close_position`.
+    decorator_backtest_position_open,  # Decorator that redirects to `__backtest_position_open` in backtest mode.
+    decorator_backtest_pending_order_open,  # Decorator that redirects to `__backtest_pending_order_open`.
+    decorator_backtest_position_modify,  # Decorator that redirects to `__backtest_position_modify`.
+    decorator_backtest_pending_order_modify,  # Decorator that redirects to `__backtest_pending_order_modify`.
+    decorator_backtest_position_close,  # Decorator that redirects to `__backtest_close_position`.
 )
 
 
-# **Fixture da Conta**
+# **Account Fixture**
 @pytest.fixture
 def account():
-    """Fixture que cria uma instância de conta para os testes.
+    """Fixture that creates an account instance for testing.
 
-    Simula o login em uma conta ao vivo.
+    Simulates login to a live account before backtesting.
 
     Returns:
-        Account: Instância de conta com dados configurados.
+        Account: Account instance with configured data.
     """
     account = Account()
 
-    # Simula login na conta ao vivo antes do backtest
+    # Simulates login to a live account before backtesting
     account.live_account_data = MqlAccountInfo(
         login=123456,
         trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
@@ -72,27 +72,27 @@ def account():
     )
     account.login_backtest(
         balance=5000, leverage=100
-    )  # Inicia a conta com saldo de $5.000 e alavancagem 1:100.
+    )  # Initializes the account with $5,000 balance and 1:100 leverage.
 
     return account
 
 
-# **Função Simulada**
+# **Simulated Function**
 def dummy_func(*args, **kwargs):
     return "Function executed in live account"
 
 
-# **Testes para Decorators**
+# **Tests for Decorators**
 def test_decorator_backtest_position_open(account):
     """
-    Testa o decorator `decorator_backtest_position_open`.
+    Tests the `decorator_backtest_position_open` decorator.
 
-    Verifica:
-    1. Se `__backtest_position_open` é chamado em contas de backtest sem executar sua lógica interna.
+    Verifies:
+    1. If `__backtest_position_open` is called in backtest accounts without executing its internal logic.
     """
     decorated_func = decorator_backtest_position_open(dummy_func)
 
-    # Modo Backtest
+    # Backtest Mode
     with patch(
         "algo_trading.sources.MetaTrader5_source.backtest.backtest.__backtest_position_open",
         return_value=None,
@@ -105,7 +105,7 @@ def test_decorator_backtest_position_open(account):
         )
         mock_position_open.assert_called_once()
 
-    # Modo Live
+    # Live Mode
     account.live_account_data.is_backtest_account = False
     result = decorated_func(
         account.live_account_data.operation,
@@ -118,13 +118,13 @@ def test_decorator_backtest_position_open(account):
 
 def test_decorator_backtest_pending_order_open(account):
     """
-    Testa o decorator `decorator_backtest_pending_order_open`.
+    Tests the `decorator_backtest_pending_order_open` decorator.
 
-    Verifica se `__backtest_pending_order_open` é chamado corretamente.
+    Verifies if `__backtest_pending_order_open` is called correctly.
     """
     decorated_func = decorator_backtest_pending_order_open(dummy_func)
 
-    # Modo Backtest
+    # Backtest Mode
     with patch(
         "algo_trading.sources.MetaTrader5_source.backtest.backtest.__backtest_pending_order_open",
         return_value=None,
@@ -138,7 +138,7 @@ def test_decorator_backtest_pending_order_open(account):
         )
         mock_pending_order_open.assert_called_once()
 
-    # Modo Live
+    # Live Mode
     account.live_account_data.is_backtest_account = False
     result = decorated_func(
         account.live_account_data.operation,
@@ -152,13 +152,13 @@ def test_decorator_backtest_pending_order_open(account):
 
 def test_decorator_backtest_position_modify(account):
     """
-    Testa o decorator `decorator_backtest_position_modify`.
+    Tests the `decorator_backtest_position_modify` decorator.
 
-    Verifica se `__backtest_position_modify` é chamado corretamente.
+    Verifies if `__backtest_position_modify` is called correctly.
     """
     decorated_func = decorator_backtest_position_modify(dummy_func)
 
-    # Modo Backtest
+    # Backtest Mode
     with patch(
         "algo_trading.sources.MetaTrader5_source.backtest.backtest.__backtest_position_modify",
         return_value=None,
@@ -170,7 +170,7 @@ def test_decorator_backtest_position_modify(account):
         )
         mock_position_modify.assert_called_once()
 
-    # Modo Live
+    # Live Mode
     account.live_account_data.is_backtest_account = False
     result = decorated_func(
         account.live_account_data.operation, stop_price=1.1190, profit_price=1.1300
@@ -180,13 +180,13 @@ def test_decorator_backtest_position_modify(account):
 
 def test_decorator_backtest_pending_order_modify(account):
     """
-    Testa o decorator `decorator_backtest_pending_order_modify`.
+    Tests the `decorator_backtest_pending_order_modify` decorator.
 
-    Verifica se `__backtest_pending_order_modify` é chamado corretamente.
+    Verifies if `__backtest_pending_order_modify` is called correctly.
     """
     decorated_func = decorator_backtest_pending_order_modify(dummy_func)
 
-    # Modo Backtest
+    # Backtest Mode
     with patch(
         "algo_trading.sources.MetaTrader5_source.backtest.backtest.__backtest_pending_order_modify",
         return_value=None,
@@ -200,7 +200,7 @@ def test_decorator_backtest_pending_order_modify(account):
         )
         mock_pending_order_modify.assert_called_once()
 
-    # Modo Live
+    # Live Mode
     account.live_account_data.is_backtest_account = False
     result = decorated_func(
         account.live_account_data.operation,
@@ -214,13 +214,13 @@ def test_decorator_backtest_pending_order_modify(account):
 
 def test_decorator_backtest_position_close(account):
     """
-    Testa o decorator `decorator_backtest_position_close`.
+    Tests the `decorator_backtest_position_close` decorator.
 
-    Verifica se `__backtest_position_close` é chamado corretamente.
+    Verifies if `__backtest_position_close` is called correctly.
     """
     decorated_func = decorator_backtest_position_close(dummy_func)
 
-    # Modo Backtest
+    # Backtest Mode
     with patch(
         "algo_trading.sources.MetaTrader5_source.backtest.backtest.__backtest_position_close",
         return_value=None,
@@ -228,7 +228,7 @@ def test_decorator_backtest_position_close(account):
         decorated_func(account.backtest_account_data.operation, position_ticket=12345)
         mock_close_position.assert_called_once()
 
-    # Modo Live
+    # Live Mode
     account.live_account_data.is_backtest_account = False
     result = decorated_func(account.live_account_data.operation, position_ticket=12345)
     assert result == "Function executed in live account"

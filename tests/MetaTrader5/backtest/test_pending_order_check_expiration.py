@@ -1,46 +1,46 @@
-# **Bibliotecas Padrão do Python**
-import pytest  # Framework de testes para facilitar a criação e execução de testes automatizados
+# **Python Standard Libraries**
+import pytest  # Framework for automated test creation and execution
 from datetime import (
     datetime,
     timezone,
     timedelta,
     time,
-)  # Manipulação de datas e fusos horários
-import pandas as pd  # Biblioteca para manipulação de séries temporais e DataFrames
+)  # Date and time manipulation
+import pandas as pd  # DataFrames and time series manipulation
 
-# **Importações de Enums e Classes Relacionadas ao MetaTrader 5**
+# **Import Enums and MetaTrader 5 Classes**
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    ENUM_ORDER_TYPE_PENDING,  # Tipos de ordens pendentes (`BUY_LIMIT`, `SELL_STOP`, etc.)
-    ENUM_ACCOUNT_TRADE_MODE,  # Enum de modo de negociação (`DEMO`, `LIVE`, etc.)
-    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum para tipo de `stop out` (`PERCENT`, `MONEY`, etc.)
-    ENUM_ACCOUNT_MARGIN_MODE,  # Enum para tipo de margem (`RETAIL_HEDGING`, `NETTING`, etc.)
-    ENUM_SYMBOL_CALC_MODE,  # Enum para modo de cálculo (`FOREX`, `CFD`, `FUTURES`, etc.)
+    ENUM_ORDER_TYPE_PENDING,  # Types of pending orders (`BUY_LIMIT`, `SELL_STOP`, etc.)
+    ENUM_ACCOUNT_TRADE_MODE,  # Enum for trading mode (`DEMO`, `LIVE`, etc.)
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum for stop out mode (`PERCENT`, `MONEY`, etc.)
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum for margin type (`RETAIL_HEDGING`, `NETTING`, etc.)
+    ENUM_SYMBOL_CALC_MODE,  # Enum for calculation mode (`FOREX`, `CFD`, `FUTURES`, etc.)
     ENUM_SYMBOL_SWAP_MODE,
-    MqlAccountInfo,  # Classe de informações da conta (saldo, margem, modo de operação, etc.)
+    MqlAccountInfo,  # Class for account information (balance, margin, trading mode, etc.)
 )
 
-# **Importações das Funções de Backtest**
+# **Import Backtest Functions**
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __backtest_pending_order_check_expiration,  # Função que verifica e remove ordens pendentes expiradas
-    __backtest_pending_order_open,  # Função que cria ordens pendentes no modo backtest
+    __backtest_pending_order_check_expiration,  # Function to check and remove expired pending orders
+    __backtest_pending_order_open,  # Function to create pending orders in backtest mode
 )
 
-# **Importação da Classe Account**
+# **Import Account Class**
 from algo_trading.sources.MetaTrader5_source.account.account import (
     Account,
-)  # Classe que representa a conta de negociação
+)  # Class representing the trading account
 
 
-# **Fixture de Conta para os Testes**
+# **Account Fixture for Tests**
 @pytest.fixture
 def account():
     """
-    Fixture que cria uma instância de conta para os testes.
-    Simula o login em uma conta ao vivo e reinicializa a conta em modo backtest.
+    Fixture that creates an account instance for testing.
+    Simulates login to a live account before backtesting.
     """
     account = Account()
 
-    # Simula login na conta ao vivo antes do backtest
+    # Simulates login to a live account before backtesting
     account.live_account_data = MqlAccountInfo(
         login=123456,
         trade_mode=ENUM_ACCOUNT_TRADE_MODE.ACCOUNT_TRADE_MODE_DEMO,
@@ -75,12 +75,12 @@ def account():
     return account
 
 
-# **Teste 1: Expiração de ordem no horário exato**
+# **Test 1: Order expiration at exact time**
 def test_order_expiration_specified_time(account: Account):
     """
-    Testa a expiração de ordens pendentes com tipo `ORDER_TIME_SPECIFIED`.
+    Tests the expiration of pending orders with type `ORDER_TIME_SPECIFIED`.
 
-    Verifica se a ordem expira no horário exato especificado.
+    Verifies if the order expires at the exact specified time.
     """
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -107,16 +107,16 @@ def test_order_expiration_specified_time(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new symbol with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Expiração da ordem após o horário de abertura
+    # Order expiration after opening time
     order_expiration_time = last_candle_time + timedelta(minutes=1)
 
-    # Criação da ordem pendente
+    # Create pending order
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -127,27 +127,27 @@ def test_order_expiration_specified_time(account: Account):
         comment="Order 1",
     )
 
-    # Atualização do último candle para após a expiração
+    # Update the last candle after expiration
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.12, "high": 1.13, "low": 1.09, "close": 1.11},
         name=order_expiration_time + timedelta(seconds=1),
     )
 
-    # Executa a verificação de expiração
+    # Execute expiration check
     __backtest_pending_order_check_expiration(operation_handler)
 
-    # Verificação após expiração
+    # Verify after expiration
     assert (
         len(operation_handler.account_data.orders) == 0
-    ), "A ordem deveria ter expirado e sido removida."
+    ), "The order should have expired and been removed."
 
 
-# **Teste 2: Expiração de ordem ao final do dia (`ORDER_TIME_SPECIFIED_DAY`)**
+# **Test 2: Order expiration at the end of the day (`ORDER_TIME_SPECIFIED_DAY`)**
 def test_order_expiration_specified_day(account: Account):
     """
-    Testa a expiração de ordens pendentes com tipo `ORDER_TIME_SPECIFIED_DAY`.
+    Tests the expiration of pending orders with type `ORDER_TIME_SPECIFIED_DAY`.
 
-    Verifica se a ordem expira ao final do dia especificado (23:59:59).
+    Verifies if the order expires at the end of the specified day (23:59:59).
     """
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -174,13 +174,13 @@ def test_order_expiration_specified_day(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new symbol with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Expiração ao final do dia (23:59:59 UTC)
+    # Expiration at the end of the day (23:59:59 UTC)
     order_expiration_datetime = datetime.combine(
         last_candle_time.date(), datetime.min.time(), tzinfo=timezone.utc
     )
@@ -188,7 +188,7 @@ def test_order_expiration_specified_day(account: Account):
         hour=23, minute=59, second=59
     )
 
-    # Criação de ordem pendente com expiração ao final do dia
+    # Create pending order with expiration at the end of the day
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -199,27 +199,27 @@ def test_order_expiration_specified_day(account: Account):
         comment="Order 2",
     )
 
-    # Atualização do último candle para 23:59:59 do mesmo dia
+    # Update the last candle to 23:59:59 of the same day
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.12, "high": 1.14, "low": 1.10, "close": 1.13},
         name=expiration_end_of_day,
     )
 
-    # Executa a verificação de expiração
+    # Execute expiration check
     __backtest_pending_order_check_expiration(operation_handler)
 
-    # Verificação após expiração
+    # Verify after expiration
     assert (
         len(operation_handler.account_data.orders) == 0
-    ), "A ordem deveria ter expirado e sido removida."
+    ), "The order should have expired and been removed."
 
 
-# **Teste 3: Ordem sem expiração (não deve ser removida)**
+# **Test 3: Order without expiration (should not be removed)**
 def test_order_no_expiration(account: Account):
     """
-    Testa ordens pendentes sem `time_expiration`.
+    Tests pending orders without `time_expiration`.
 
-    Verifica se a ordem não é removida quando `time_expiration` é `None`.
+    Verifies if the order is not removed when `time_expiration` is `None`.
     """
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
@@ -246,13 +246,13 @@ def test_order_no_expiration(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new symbol with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # Criação de ordem pendente sem expiração
+    # Create pending order without expiration
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -263,36 +263,36 @@ def test_order_no_expiration(account: Account):
         comment="Order 3",
     )
 
-    # Atualização do último candle para um horário posterior
+    # Update the last candle to a later time
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.12, "high": 1.15, "low": 1.11, "close": 1.13},
         name=last_candle_time + timedelta(minutes=10),
     )
 
-    # Executa a verificação de expiração
+    # Execute expiration check
     __backtest_pending_order_check_expiration(operation_handler)
 
-    # Verificação após execução
+    # Verify after expiration
     assert (
         len(operation_handler.account_data.orders) == 1
-    ), "A ordem não deveria ter expirado."
+    ), "The order should not have expired."
 
 
-# **Teste 4: Várias ordens pendentes com diferentes tipos de expiração**
+# **Test 4: Multiple orders with different expiration types**
 def test_multiple_orders_with_different_expirations(account: Account):
     """
-    Testa o comportamento com múltiplas ordens pendentes com diferentes tipos de expiração.
+    Tests the behavior with multiple pending orders with different expiration types.
 
-    Verifica se cada ordem é tratada corretamente com base em seu tipo de expiração.
+    Verifies if each order is handled correctly based on its expiration type.
     """
-    # **Inicialização da conta em modo de backtest**
+    # **Account initialization in backtest mode**
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
 
     symbol = "EURUSD"
     last_candle_time = datetime(2025, 1, 10, 12, 0, tzinfo=timezone.utc)
 
-    # **Simulação do último candle no momento da abertura das ordens**
+    # **Simulation of the last candle at the time of order opening**
     # Complete configuration
     new_data = {
         "tick_size": 1e-05,
@@ -312,15 +312,15 @@ def test_multiple_orders_with_different_expirations(account: Account):
         ),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Create a DataFrame for the new symbol with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # **Criação de múltiplas ordens com diferentes tipos de expiração**
+    # **Create multiple orders with different expiration types**
 
-    # 1. Ordem que deve expirar após 5 minutos
+    # 1. Order that should expire after 5 minutes
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -328,10 +328,10 @@ def test_multiple_orders_with_different_expirations(account: Account):
         volume=1,
         price=1.11,
         expiration=last_candle_time + timedelta(minutes=5),  # Expira às 12:05
-        comment="Order 4",  # Deve expirar
+        comment="Order 4",  # Should expire
     )
 
-    # 2. Ordem que deve expirar ao final do dia (23:59:59)
+    # 2. Order that should expire at the end of the day (23:59:59)
     expiration_date = datetime.combine(
         last_candle_time.date(), time(23, 59, 59), tzinfo=timezone.utc
     )
@@ -341,38 +341,38 @@ def test_multiple_orders_with_different_expirations(account: Account):
         order_type=ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_SELL_STOP,
         volume=1,
         price=1.10,
-        expiration=expiration_date,  # Expira ao final do dia
-        comment="Order 5",  # Deve expirar
+        expiration=expiration_date,  # Expires at the end of the day
+        comment="Order 5",  # Should expire
     )
 
-    # 3. Ordem sem expiração
+    # 3. Order without expiration
     __backtest_pending_order_open(
         operation_class=operation_handler,
         symbol=symbol,
         order_type=ENUM_ORDER_TYPE_PENDING.ORDER_TYPE_BUY_STOP,
         volume=1,
         price=1.12,
-        expiration=None,  # Não expira
-        comment="Order 6",  # Não deve expirar
+        expiration=None,  # Does not expire
+        comment="Order 6",  # Should not expire
     )
 
-    # **Atualização do último candle para 10 minutos após a criação das ordens (12:10)**
+    # Update the last candle to 10 minutes after order creation (12:10)
     updated_candle_time = last_candle_time + timedelta(minutes=10)
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         {"open": 1.12, "high": 1.15, "low": 1.10, "close": 1.14},
         name=updated_candle_time,
     )
 
-    # **Executa a verificação de expiração**
+    # Execute expiration check
     __backtest_pending_order_check_expiration(operation_handler)
 
-    # **Verificações após execução**
+    # Verify after expiration
     assert (
         len(operation_handler.account_data.orders) == 2
-    ), "Apenas as ordens sem expiração e não expiradas deveriam permanecer."
+    ), "Only orders without expiration and not expired should remain."
     assert (
         operation_handler.account_data.orders[0].comment == "Order 5"
-    ), "A ordem `Order 5` deveria ser remanescente."
+    ), "Order `Order 5` should remain."
     assert (
         operation_handler.account_data.orders[1].comment == "Order 6"
-    ), "A ordem `Order 6` deveria ser remanescente."
+    ), "Order `Order 6` should remain."

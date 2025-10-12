@@ -1,41 +1,41 @@
-# **Importações de bibliotecas e dependências necessárias**
+# **Importation of libraries and dependencies**
 
-# Importações de bibliotecas padrão
-import pytest  # Framework para testes
-from datetime import datetime, timezone  # Manipulação de datas e fusos horários
-import pandas as pd  # Biblioteca para manipulação de dados
+# **Importation of standard libraries**
+import pytest  # Framework for tests
+from datetime import datetime, timezone  # Date and time manipulation
+import pandas as pd  # Data manipulation library
 
-# **Importações de classes, enums e funções do MetaTrader 5**
+# **Importation of classes, enums and functions of MetaTrader 5**
 
-# Modelos e enums para operações no MetaTrader 5
+# Models and enums for MetaTrader 5 operations
 from algo_trading.sources.MetaTrader5_source.models.metatrader import (
-    MqlAccountInfo,  # Modelo de informações de conta
-    ENUM_ORDER_TYPE_MARKET,  # Enum para tipos de ordens de mercado (compra/venda)
-    ENUM_SYMBOL_CALC_MODE,  # Enum para modos de cálculo de símbolo (Forex, CFDs, etc.)
-    ENUM_ACCOUNT_TRADE_MODE,  # Enum para modos de negociação da conta
-    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum para modos de stop-out da conta
-    ENUM_ACCOUNT_MARGIN_MODE,  # Enum para modos de margem da conta
-    ENUM_SYMBOL_SWAP_MODE,  # Enum para modos de cálculo de swap
+    MqlAccountInfo,  # Account information model
+    ENUM_ORDER_TYPE_MARKET,  # Enum for types of market orders (buy/sell)
+    ENUM_SYMBOL_CALC_MODE,  # Enum for symbol calculation modes (Forex, CFDs, etc.)
+    ENUM_ACCOUNT_TRADE_MODE,  # Enum for account trading modes
+    ENUM_ACCOUNT_STOPOUT_MODE,  # Enum for account stop-out modes
+    ENUM_ACCOUNT_MARGIN_MODE,  # Enum for account margin modes
+    ENUM_SYMBOL_SWAP_MODE,  # Enum for symbol swap modes
 )
 
-# Funções de backtest do MetaTrader 5
+# Backtest functions of MetaTrader 5
 from algo_trading.sources.MetaTrader5_source.backtest.backtest import (
-    __backtest_position_update_price_and_profit,  # Função para atualizar preço e lucro das posições
-    __backtest_position_open,  # Função para abrir posições de mercado durante o backtest
-    __backtest_position_apply_swap_to_positions,  # Função para aplicar swaps às posições abertas
+    __backtest_position_update_price_and_profit,  # Function to update position price and profit
+    __backtest_position_open,  # Function to open market positions during backtesting
+    __backtest_position_apply_swap_to_positions,  # Function to apply swaps to open positions
 )
 
-# Classe de gerenciamento de conta
+# Account management class
 from algo_trading.sources.MetaTrader5_source.account.account import (
     Account,
-)  # Classe `Account` para login e gerenciamento de dados da conta
+)  # Account class for login and account data management
 
 
-# **Fixture para configuração inicial da conta**
+# **Account fixture for tests**
 @pytest.fixture
 def account():
     """
-    Cria uma instância de conta com dados simulados para testes.
+    Creates an account instance with simulated data for testing.
     """
     account = Account()
     account.live_account_data = MqlAccountInfo(
@@ -71,29 +71,29 @@ def account():
     return account
 
 
-# **Teste 1: Atualização de preço e lucro para uma posição de compra (BUY)**
+# **Test 1: Update of price and profit for a buy position**
 def test_update_buy_position_price_and_profit(account: Account):
     """
-    Testa a atualização do preço atual e cálculo de lucro para uma posição de compra (BUY).
+    Tests the update of the current price and profit calculation for a buy position.
 
-    Objetivo:
-    - Verificar se o preço de abertura da posição é calculado corretamente considerando o spread.
-    - Validar se o preço atual da posição é atualizado com base no último preço de fechamento.
-    - Garantir que o lucro é calculado de forma precisa com base na diferença de preços.
+    Objective:
+    - Verify if the position opening price is calculated correctly considering the spread.
+    - Validate if the position current price is updated based on the last closing price.
+    - Ensure that the profit is calculated accurately based on the price difference.
     """
-    # Reinicializa a conta no backtest com saldo inicial e alavancagem configurados
+    # Initializes the account in backtest mode with initial balance and leverage
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
-    account.backtest_account_data.simulated_spread = 4  # Spread simulado de 4 pips
+    account.backtest_account_data.simulated_spread = 4  # Simulated spread of 4 pips
 
-    # **Configuração de parâmetros do mercado**
+    # **Market parameters configuration**
     symbol = "EURUSD"
-    contract_size = 100_000  # 1 lote = 100.000 unidades
+    contract_size = 100_000  # 1 lot = 100.000 units
     tick_size = 0.00001  # 1 pip = 0.00001
 
-    # Define os dados do novo símbolo como um dicionário
+    # Define the new symbol data as a dictionary
     last_candle_time = datetime(2025, 1, 10, 12, 0, tzinfo=timezone.utc)
-    close_candle_price = 1.14  # Preço de fechamento do candle
+    close_candle_price = 1.14  # Closing price of the candle
     last_candle = {"open": 1.12, "high": 1.15, "low": 1.11, "close": close_candle_price}
 
     new_data = {
@@ -111,22 +111,22 @@ def test_update_buy_position_price_and_profit(account: Account):
         "last_candle": pd.Series(last_candle, name=last_candle_time),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new symbol data with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new symbol data to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # **Último candle de preço**
+    # **Last price candle**
     open_position_price = round(
         close_candle_price
         + (operation_handler.account_data.simulated_spread * tick_size),
         5,
     )
 
-    # **Abertura da posição de compra (BUY)**
+    # **Buy position opening**
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -135,40 +135,40 @@ def test_update_buy_position_price_and_profit(account: Account):
         comment="Position 1 (Buy)",
     )
 
-    # **Atualização de preço e lucro da posição**
+    # **Position price and profit update**
     __backtest_position_update_price_and_profit(operation_handler)
     positions = account.backtest_account_data.positions
 
-    # **Verificação do preço de abertura e do preço atual**
+    # **Verification of opening and current price**
     assert (
         positions[0].price_open == open_position_price
-    ), "O preço de abertura da posição não bate com o esperado."
+    ), "The opening price of the position does not match the expected value."
     assert (
         positions[0].price_current == close_candle_price
-    ), "O preço atual não foi atualizado corretamente."
+    ), "The current price of the position was not updated correctly."
 
-    # **Verificação do lucro esperado**
+    # **Verification of expected profit**
     expected_profit = round(
         (close_candle_price - open_position_price) * contract_size, 2
     )
     assert (
         positions[0].profit == expected_profit
-    ), f"Lucro incorreto. Esperado: {expected_profit}, obtido: {positions[0].profit}"
+    ), f"Profit is incorrect. Expected: {expected_profit}, obtained: {positions[0].profit}"
 
 
-# **Teste 2: Atualização de preço e prejuízo para uma posição de venda (SELL)**
+# **Test 2: Update of price and loss for a sell position**
 def test_update_sell_position_price_and_profit(account: Account):
     """
-    Testa a atualização do preço atual e cálculo de prejuízo para uma posição de venda (SELL).
+    Tests the update of the current price and loss calculation for a sell position.
 
-    Objetivo:
-    - Verificar se o preço de abertura da posição é calculado corretamente considerando o spread.
-    - Validar se o preço atual da posição é atualizado com base no último preço de fechamento.
-    - Garantir que o lucro/prejuízo é calculado de forma precisa com base na diferença de preços.
+    Objective:
+    - Verify if the opening price of the position is calculated correctly considering the spread.
+    - Validate if the current price of the position is updated based on the last closing price.
+    - Ensure that the profit/loss is calculated accurately based on the price difference.
     """
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
-    account.backtest_account_data.simulated_spread = 4  # Spread simulado de 4 pips
+    account.backtest_account_data.simulated_spread = 4  # Simulated spread of 4 pips
 
     symbol = "EURUSD"
     contract_size = 100_000
@@ -192,10 +192,10 @@ def test_update_sell_position_price_and_profit(account: Account):
         "last_candle": pd.Series(last_candle, name=last_candle_time),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new symbol data with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new symbol data to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
@@ -206,7 +206,7 @@ def test_update_sell_position_price_and_profit(account: Account):
         5,
     )
 
-    # **Abertura da posição de venda (SELL)**
+    # **Sell position opening**
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
@@ -215,50 +215,49 @@ def test_update_sell_position_price_and_profit(account: Account):
         comment="Position 2 (Sell)",
     )
 
-    # **Atualização de preço atual e prejuízo**
+    # **Price and loss update**
     __backtest_position_update_price_and_profit(operation_handler)
     positions = account.backtest_account_data.positions
 
     assert (
         positions[0].price_open == close_candle_price
-    ), "O preço de abertura da posição não bate com o esperado."
+    ), "The opening price of the position does not match the expected value."
     assert (
         positions[0].price_current == position_price_current
-    ), "O preço atual não foi atualizado corretamente."
+    ), "The current price of the position was not updated correctly."
 
     expected_profit = round(
         (position_price_current - close_candle_price) * contract_size * -1, 2
     )
     assert (
         positions[0].profit == expected_profit
-    ), f"Prejuízo incorreto. Esperado: {expected_profit}, obtido: {positions[0].profit}"
+    ), f"Profit is incorrect. Expected: {expected_profit}, obtained: {positions[0].profit}"
 
 
-# **Teste 3: Lucro zero se o preço não mudou**
+# **Test 3: Profit zero if the price does not change**
 def test_update_position_no_price_change(account: Account):
     """
-    Testa a atualização do preço atual e cálculo de lucro/prejuízo com preço inalterado.
+    Tests the update of the current price and profit calculation with unchanged price.
 
-    Objetivo:
-    - Garantir que o preço de abertura da posição de compra seja calculado corretamente considerando o spread.
-    - Manter o mesmo preço de fechamento no `last_candle` após a abertura da posição.
-    - Verificar que o lucro permanece zero quando o preço não muda.
+    Objective:
+    - Ensure that the opening price of the buy position is calculated correctly considering the spread.
+    - Maintain the same closing price in `last_candle` after opening the position.
+    - Verify that the profit remains zero when the price does not change.
     """
-    # **Reinicializa a conta no backtest com saldo inicial e alavancagem configurados**
     account.login_backtest(balance=10000, leverage=100)
     operation_handler = account.backtest_account_data.operation
-    account.backtest_account_data.simulated_spread = 4  # Spread simulado de 4 pips
+    account.backtest_account_data.simulated_spread = 4  # Simulated spread of 4 pips
 
-    # **Configuração de parâmetros do mercado**
-    symbol = "EURUSD"  # Par de moedas
-    contract_size = 100_000  # 1 lote = 100.000 unidades da moeda base
-    tick_size = 0.00001  # Precisão do preço (1 pip = 0.00001)
+    # **Market parameters configuration**
+    symbol = "EURUSD"  # Currency pair
+    contract_size = 100_000  # 1 lot = 100.000 units of the base currency
+    tick_size = 0.00001  # Price precision (1 pip = 0.00001)
 
-    # **Último candle antes de abrir a posição**
+    # **Last candle before opening the position**
     last_candle_time_before = datetime(
         2025, 1, 10, 12, 0, tzinfo=timezone.utc
-    )  # Horário do último candle antes da abertura
-    close_candle_price = 1.12  # Preço de fechamento
+    )  # Time of the last candle before opening the position
+    close_candle_price = 1.12  # Closing price
     last_candle_before = {
         "open": close_candle_price,
         "high": 1.15,
@@ -281,34 +280,34 @@ def test_update_position_no_price_change(account: Account):
         "last_candle": pd.Series(last_candle_before, name=last_candle_time_before),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new symbol data with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new symbol data to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
 
-    # **Cálculo do preço de abertura ajustado pelo spread**
+    # **Price calculation adjusted by spread**
     open_position_price = round(
         close_candle_price
         + (operation_handler.account_data.simulated_spread * tick_size),
         5,
     )
 
-    # **Abertura da posição de compra (`BUY`)**
+    # **Buy position opening**
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Tipo de ordem: compra
-        volume=1,  # Volume de 1 lote
-        comment="Position 1 (Buy)",  # Comentário identificando a posição
+        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Order type: buy
+        volume=1,  # Volume of 1 lot
+        comment="Position 1 (Buy)",  # Comment identifying the position
     )
 
-    # **Último candle após a abertura da posição (mesmo preço de fechamento)**
+    # **Last candle after opening the position (same closing price)**
     last_candle_time_after = datetime(
         2025, 1, 10, 12, 5, tzinfo=timezone.utc
-    )  # Horário posterior à abertura
+    )  # Time after opening the position
     last_candle_after = {
         "open": close_candle_price,
         "high": 1.15,
@@ -320,55 +319,55 @@ def test_update_position_no_price_change(account: Account):
         last_candle_after, name=last_candle_time_after
     )
 
-    # **Atualização de preço atual e cálculo do lucro**
+    # **Price and profit update**
     __backtest_position_update_price_and_profit(
         operation_handler
-    )  # Atualiza o preço atual e lucro da posição
-    positions = account.backtest_account_data.positions  # Obtém as posições abertas
+    )  # Updates the current price and profit of the position
+    positions = account.backtest_account_data.positions  # Gets the open positions
 
-    # **Verificação do preço de abertura e do preço atual**
+    # **Verification of the opening and current price**
     assert (
         positions[0].price_open == open_position_price
-    ), f"O preço de abertura da posição está incorreto. Esperado: {open_position_price}, obtido: {positions[0].price_open}"
+    ), f"The opening price of the position is incorrect. Expected: {open_position_price}, obtained: {positions[0].price_open}"
     assert (
         positions[0].price_current == open_position_price
-    ), f"O preço atual não foi atualizado corretamente. Esperado: {open_position_price}, obtido: {positions[0].price_current}"
+    ), f"The current price was not updated correctly. Expected: {open_position_price}, obtained: {positions[0].price_current}"
 
-    # **Verificação do lucro esperado**
-    expected_profit = 0.0  # O lucro esperado deve ser zero porque o preço não mudou
+    # **Verification of expected profit**
+    expected_profit = 0.0  # The expected profit should be zero because the price did not change
     assert (
         positions[0].profit == expected_profit
-    ), f"Lucro incorreto. Esperado: {expected_profit}, obtido: {positions[0].profit}"
+    ), f"Profit is incorrect. Expected: {expected_profit}, obtained: {positions[0].profit}"
 
 
-# **Teste 4: Lucro negativo para uma posição de compra (`BUY`) com `swap` aplicado**
+# **Test 4: Negative profit for a buy position with swap applied**
 def test_account_profit_with_buy_position_and_swap(account: Account):
     """
-    Testa o cálculo do `profit` total da conta considerando uma posição de compra (`BUY`) com lucro negativo
-    devido ao `swap` e aplicação do spread.
+    Tests the calculation of the `profit` total of the account considering a buy position with negative profit
+    due to `swap` and spread application.
 
-    Objetivo:
-    - Verificar se o preço de abertura da posição é calculado corretamente considerando o spread.
-    - Validar se o `swap` é aplicado corretamente após o horário de fechamento (22:00 UTC).
-    - Garantir que o lucro total da conta seja atualizado corretamente com o `swap`.
+    Objective:
+    - Verify if the opening price of the position is calculated correctly considering the spread.
+    - Validate if the `swap` is applied correctly after closing time (22:00 UTC).
+    - Verify that the total profit of the account is updated correctly with the `swap`.
     """
     account.login_backtest(
         balance=10000, leverage=100
-    )  # Reinicializa a conta com saldo inicial e alavancagem configurados
+    )  # Initializes the account with initial balance and leverage
     operation_handler = account.backtest_account_data.operation
-    account.backtest_account_data.simulated_spread = 4  # Simulação de spread de 4 pips
+    account.backtest_account_data.simulated_spread = 4  # Simulated spread of 4 pips
 
-    # **Configuração de parâmetros do mercado**
-    symbol = "EURUSD"  # Par de moedas
-    tick_size = 0.00001  # Precisão do preço (1 pip = 0.00001)
+    # **Market parameters configuration**
+    symbol = "EURUSD"  # Currency pair
+    tick_size = 0.00001  # Price precision (1 pip = 0.00001)
 
-    # **Último candle antes do horário de fechamento**
+    # **Last candle before closing time**
     last_candle_time = datetime(
         2025, 1, 10, 12, 0, tzinfo=timezone.utc
-    )  # Sexta-feira, 12h UTC
-    close_candle_price = 1.15  # Preço de fechamento do último candle
+    )  # Friday, 12h UTC
+    close_candle_price = 1.15  # Closing price of the last candle
 
-    # **Define os preços do candle antes de abrir a posição**
+    # **Prices of the candle before opening the position**
     last_candle = {"open": 1.12, "high": 1.16, "low": 1.11, "close": close_candle_price}
 
     new_data = {
@@ -386,10 +385,10 @@ def test_account_profit_with_buy_position_and_swap(account: Account):
         "last_candle": pd.Series(last_candle, name=last_candle_time),
     }
 
-    # Cria um DataFrame para o novo registro com o mesmo formato do DataFrame existente
+    # Creates a DataFrame for the new symbol data with the same format as the existing DataFrame
     new_row = pd.DataFrame([new_data], index=[symbol])
 
-    # Concatena o novo registro ao DataFrame existente
+    # Concatenates the new symbol data to the existing DataFrame
     operation_handler.backtest_symbols_data = pd.concat(
         [operation_handler.backtest_symbols_data, new_row]
     )
@@ -400,51 +399,51 @@ def test_account_profit_with_buy_position_and_swap(account: Account):
         close_candle_price
         + (operation_handler.account_data.simulated_spread * tick_size),
         5,
-    )  # Preço de abertura com spread
+    )  # Opening price with spread
 
-    # **Abertura de posição de compra (`BUY`)**
+    # **Buy position opening**
     __backtest_position_open(
         operation_class=operation_handler,
         symbol=symbol,
-        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Ordem de compra
+        order_type=ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY,  # Order type: buy
         volume=1,  # 1 lote
-        comment="Position 1 (Buy)",  # Comentário para identificar a posição
+        comment="Position 1 (Buy)",  # Comment to identify the position
     )
 
-    # **Candle após o horário de fechamento para ativar o `swap`**
+    # **Candle after closing time to activate the `swap`**
     last_candle_time_swap = datetime(
         2025, 1, 10, 23, 0, tzinfo=timezone.utc
-    )  # Sexta-feira, 23h UTC
+    )  # Friday, 23h UTC
 
-    # Atualiza o último candle para validar o swap
+    # Updates the last candle to validate the swap
     operation_handler.backtest_symbols_data.at[symbol, "last_candle"] = pd.Series(
         last_candle, name=last_candle_time_swap
     )
 
-    # **Aplicação do swap às posições abertas**
+    # **Swap application to open positions**
     __backtest_position_apply_swap_to_positions(
         operation_handler
-    )  # Aplica o `swap` após o horário de fechamento (22h UTC)
+    )  # Applies the `swap` after closing time (22h UTC)
 
-    # **Atualização de preço atual e cálculo de lucro**
+    # **Price and profit update**
     __backtest_position_update_price_and_profit(
         operation_handler
-    )  # Atualiza o preço atual e o lucro/prejuízo com o `swap`
-    positions = account.backtest_account_data.positions  # Obtém as posições abertas
+    )  # Updates the current price and profit with the `swap`
+    positions = account.backtest_account_data.positions  # Gets the open positions
 
-    # **Verificação do preço de abertura, `swap` e lucro esperado**
+    # **Verification of the opening price, `swap` and expected profit**
     assert (
         positions[0].price_open == open_position_price
-    ), f"O preço de abertura está incorreto. Esperado: {open_position_price}, obtido: {positions[0].price_open}"
+    ), f"The opening price is incorrect. Expected: {open_position_price}, obtained: {positions[0].price_open}"
     assert (
         positions[0].swap == -1.0
-    ), f"O valor do `swap` está incorreto. Esperado: -1.0, obtido: {positions[0].swap}"
+    ), f"The `swap` value is incorrect. Expected: -1.0, obtained: {positions[0].swap}"
     assert (
         positions[0].profit == -4.0
-    ), f"O lucro da posição está incorreto. Esperado: -4.0, obtido: {positions[0].profit}"
+    ), f"The position profit is incorrect. Expected: -4.0, obtained: {positions[0].profit}"
 
-    # **Cálculo do lucro total da conta**
+    # **Total profit calculation**
     total_profit_with_swap = round(positions[0].swap + positions[0].profit, 2)
     assert (
         account.backtest_account_data.profit == total_profit_with_swap
-    ), f"Lucro total da conta está incorreto. Esperado: {total_profit_with_swap}, obtido: {account.backtest_account_data.profit}"
+    ), f"The total profit of the account is incorrect. Expected: {total_profit_with_swap}, obtained: {account.backtest_account_data.profit}"
