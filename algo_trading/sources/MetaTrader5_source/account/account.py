@@ -148,6 +148,7 @@ class Account:
             assets=0,
             liabilities=0,
             commission_blocked=0,
+            simulated_spread=3,
             trade_allowed=True,
             trade_expert=True,
             name="Backtest Account",

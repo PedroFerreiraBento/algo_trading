@@ -248,19 +248,27 @@ class Operation:
                 [self.backtest_symbols_data, df_symbols]
             )
 
-    # Processa os eventos após atualização
+    # Process the candles events after update
     @decorator_update_candles
     def backtest_update_candles(self, last_candles: Dict[str, pd.Series]):
         """
-        Atualiza os candles de múltiplos símbolos no DataFrame de forma vetorizada.
+        Update the candles of multiple symbols in the DataFrame vectorized.
         """
-        # Converte `last_candles` para um `DataFrame` e faz o alinhamento automático com `update()`
-        update_df = pd.DataFrame.from_dict(
-            last_candles, orient="index", columns=["last_candle"]
-        )
+        bsd = self.backtest_symbols_data
+        if not last_candles or bsd is None or bsd.empty:
+            return
+        idx = bsd.index
+        symbols = [s for s in last_candles.keys() if s in idx]
+        n = len(symbols)
+        if n == 0:
+            return
+        if n == 1:
+            s = symbols[0]
+            bsd.at[s, "last_candle"] = last_candles[s]
+            return
+        values = [last_candles[s] for s in symbols]
+        bsd.loc[symbols, "last_candle"] = values
 
-        # Atualiza apenas a coluna de `last_candle`
-        self.backtest_symbols_data.update(update_df)
 
     # Open orders ---------------------------------------------------------------------------------
     @decorator_validate_mt5_connection

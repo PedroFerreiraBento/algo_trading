@@ -723,9 +723,9 @@ def validate_prices(
     # Check the Stop Limit position
     if stoplimit and (
         # Buy stop limit
-        (order_type == buy_stop_limit and stoplimit >= price)
+        (order_type == buy_stop_limit and stoplimit > price)
         # Sell stop limit
-        or (order_type == sell_stop_limit and stoplimit <= price)
+        or (order_type == sell_stop_limit and stoplimit < price)
     ):
         raise ValueError("Invalid stop limit")
 
@@ -734,13 +734,13 @@ def validate_prices(
         # Invalid stop loss
         sl < 0
         # Buy orders
-        or (order_type in buy_types and sl >= price)
+        or (order_type in buy_types and sl > price)
         # Sell orders
-        or (order_type in sell_types and sl <= price)
+        or (order_type in sell_types and sl < price)
         # Buy stop limit
-        or (order_type == buy_stop_limit and sl >= stoplimit)
+        or (order_type == buy_stop_limit and sl > stoplimit)
         # Sell stop limit
-        or (order_type == sell_stop_limit and sl <= stoplimit)
+        or (order_type == sell_stop_limit and sl < stoplimit)
     ):
         raise ValueError("Invalid stop loss")
 
@@ -749,13 +749,13 @@ def validate_prices(
         # Invalid take profit
         tp < 0
         # Buy orders
-        or (order_type in buy_types and tp <= price)
+        or (order_type in buy_types and tp < price)
         # Sell orders
-        or (order_type in sell_types and tp >= price)
+        or (order_type in sell_types and tp > price)
         # Buy stop limit
-        or (order_type == buy_stop_limit and tp <= stoplimit)
+        or (order_type == buy_stop_limit and tp < stoplimit)
         # Sell stop limit
-        or (order_type == sell_stop_limit and tp >= stoplimit)
+        or (order_type == sell_stop_limit and tp > stoplimit)
     ):
         raise ValueError("Invalid take profit")
     
@@ -2073,7 +2073,7 @@ class MqlAccountInfo(BaseFastModel):
     operation: Optional["Operation"] = None
     simulated_spread: Optional[int] = 0
     backtest_last_swap_date: Optional[datetime] = None
-        
+
     def update(self, **kwargs):
         """Updates the model attributes after validation."""
         # Define the additional dictionary

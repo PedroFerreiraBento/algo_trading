@@ -518,6 +518,26 @@ def __validate_position_volume(
             f"exceeds the limit allowed ({volume_limit}) for {symbol}."
         )
 
+
+def __validate_sl_tp_prices(
+    *,
+    price: float,
+    sl: float,
+    tp: float,
+    order_type,
+) -> None:
+    """
+    Shared SL/TP validation wrapper. Calls `validate_prices` only when SL/TP are provided.
+
+    Args:
+        price (float): Reference price used to validate SL/TP (execution/current price or pending open price).
+        sl (float): Stop-loss price.
+        tp (float): Take-profit price.
+        order_type: Directional order type (BUY/SELL or their pending equivalents) used by `validate_prices`.
+    """
+    if sl or tp:
+        validate_prices(price=price, sl=sl, tp=tp, order_type=order_type)
+
 # Create Deal -------------------------------------------------------------------------------------
 def __backtest_create_a_deal(
     operation_class: "Operation",
@@ -531,6 +551,7 @@ def __backtest_create_a_deal(
     commission: float = 0,
     order: int = None,
     comment: str = "",
+    reason: ENUM_DEAL_REASON = ENUM_DEAL_REASON.DEAL_REASON_EXPERT,
 ) -> MqlTradeDeal:
     """
     Creates a deal during the backtest and updates the account data if it is a closing or reversal of a position.
@@ -627,7 +648,7 @@ def __backtest_create_a_deal(
         fee=fee,
         comment=comment,
         magic=operation_class.account_data.magic_number,
-        reason=ENUM_DEAL_REASON.DEAL_REASON_EXPERT,
+        reason=reason,
         external_id=None,
     )
 
@@ -979,6 +1000,19 @@ def __backtest_position_open(
         # Sell order: uses the closing price of the candle directly (to simulate the BID price).
         price = last_candle.close
 
+    # Validate SL/TP relative to execution price and direction
+    mapped_order_type = (
+        ENUM_ORDER_TYPE.ORDER_TYPE_BUY
+        if order_type == ENUM_ORDER_TYPE_MARKET.ORDER_TYPE_BUY
+        else ENUM_ORDER_TYPE.ORDER_TYPE_SELL
+    )
+    __validate_sl_tp_prices(
+        price=price,
+        sl=stop_price,
+        tp=profit_price,
+        order_type=mapped_order_type,
+    )
+
     # Calculates the margin required (to open the position)
     contract_size = operation_class.backtest_symbols_data.loc[symbol, "contract_size"]
     leverage = operation_class.account_data.leverage
@@ -1081,6 +1115,14 @@ def __backtest_pending_order_open(
         stop_limit=stop_limit,
     )
 
+    # Validate SL/TP for pending orders (relative to pending price and direction)
+    __validate_sl_tp_prices(
+        price=price,
+        sl=stop_price,
+        tp=profit_price,
+        order_type=order_type,
+    )
+
     order = MqlTradeOrder(
         ticket=current_time_ms,
         symbol=symbol,
@@ -1128,8 +1170,8 @@ def __backtest_pending_order_modify(
         # Check if stop or take profit is defined
     
     if stop_price or profit_price:
-        # Validate the stoplimit, sl and tp
-        validate_prices(price=price, sl=stop_price, tp=profit_price, order_type=order.type)
+        # Validate SL/TP
+        __validate_sl_tp_prices(price=price, sl=stop_price, tp=profit_price, order_type=order.type)
 
     __validate_order_price(
         operation_class=operation_class,
@@ -1186,15 +1228,13 @@ def __backtest_position_modify(
     # Check if stop or take profit is defined
     if stop_price or profit_price:
         price = position_selected.price_current
-
-        position_type = position_selected.type
-        if position_type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY:
-            order_type = ENUM_ORDER_TYPE.ORDER_TYPE_BUY
-        else:
-            order_type = ENUM_ORDER_TYPE.ORDER_TYPE_SELL
-
-        # Validate the stoplimit, sl and tp
-        validate_prices(price=price, sl=stop_price, tp=profit_price, order_type=order_type)
+        order_type = (
+            ENUM_ORDER_TYPE.ORDER_TYPE_BUY
+            if position_selected.type == ENUM_POSITION_TYPE.POSITION_TYPE_BUY
+            else ENUM_ORDER_TYPE.ORDER_TYPE_SELL
+        )
+        # Validate SL/TP
+        __validate_sl_tp_prices(price=price, sl=stop_price, tp=profit_price, order_type=order_type)
 
     position_selected.update(
         sl=stop_price,
@@ -1212,6 +1252,7 @@ def __backtest_position_close(
     commission: float = 0,  # Commission applied to the closing of the position.
     fee: float = 0,  # Additional fee applied to the operation.
     comment: str = "",  # Optional comment about the position closing.
+    deal_reason: ENUM_DEAL_REASON | None = None,
 ):
     """
     Closes a position in backtest mode.
@@ -1269,6 +1310,7 @@ def __backtest_position_close(
         commission=commission,
         order=None,
         comment=comment,
+        reason=deal_reason or ENUM_DEAL_REASON.DEAL_REASON_EXPERT,
         operation_class=operation_class,
     )
     operation_class.account_data.history_deals.append(deal)
@@ -1512,6 +1554,7 @@ def __backtest_position_check_stop_loss_reached(operation_class: "Operation") ->
         last_candle = operation_class.backtest_symbols_data.loc[
             symbol
         ].last_candle  # Last available candle
+        logging.info(f"Last candle for {symbol}: {last_candle}")
 
         if position.sl > 0:  # Verify if there is a stop loss configured
             stop_loss_reached = (
@@ -1530,25 +1573,25 @@ def __backtest_position_check_stop_loss_reached(operation_class: "Operation") ->
                 # Store the original `close` of the candle
                 original_close = last_candle.close
 
-                operation_last_candle = operation_class.backtest_symbols_data.loc[
-                    symbol
-                ].last_candle
 
                 try:
-                    # Adjust temporarily the `close` to the stop loss price
-                    operation_last_candle = last_candle.copy()
-                    operation_last_candle["close"] = position.sl
+                    # Adjust temporarily the stored last_candle to the stop loss price
+                    lc_copy = last_candle.copy()
+                    lc_copy["close"] = position.sl
+                    lc_copy.name = last_candle.name  # ensure timestamp is preserved
+                    operation_class.backtest_symbols_data.at[symbol, "last_candle"] = lc_copy
 
-                    # Close the position
+                    # Close the position using the adjusted close so the deal gets the SL price
                     __backtest_position_close(
                         operation_class=operation_class,
                         position_ticket=position.ticket,
                         comment="Stop loss reached",
+                        deal_reason=ENUM_DEAL_REASON.DEAL_REASON_SL,
                     )
 
                 finally:
                     # Restore the original `close` of the candle
-                    operation_last_candle.close = original_close
+                    operation_class.backtest_symbols_data.at[symbol, "last_candle"]["close"] = original_close
 
 
 def __backtest_position_check_take_profit_reached(operation_class: "Operation") -> None:
@@ -1591,26 +1634,24 @@ def __backtest_position_check_take_profit_reached(operation_class: "Operation") 
                 # Store the original `close` of the candle
                 original_close = last_candle.close
 
-                operation_last_candle = operation_class.backtest_symbols_data.loc[
-                    symbol
-                ].last_candle
                 try:
-                    # Adjust temporarily the `close` to the take profit price
-                    operation_last_candle = last_candle.copy()
-                    operation_last_candle.close = position.tp
+                    # Adjust temporarily the stored last_candle to the take profit price
+                    lc_copy = last_candle.copy()
+                    lc_copy["close"] = position.tp
+                    lc_copy.name = last_candle.name  # ensure timestamp is preserved
+                    operation_class.backtest_symbols_data.at[symbol, "last_candle"] = lc_copy
 
-                    # Close the position
+                    # Close the position using the adjusted close so the deal gets the TP price
                     __backtest_position_close(
                         operation_class=operation_class,
                         position_ticket=position.ticket,
                         comment="Take profit reached",
+                        deal_reason=ENUM_DEAL_REASON.DEAL_REASON_TP,
                     )
 
                 finally:
                     # Restore the original `close` of the candle
-                    operation_class.backtest_symbols_data.loc[
-                        symbol
-                    ].last_candle.close = original_close
+                    operation_class.backtest_symbols_data.at[symbol, "last_candle"]["close"] = original_close
 
 
 def __backtest_position_update_price_and_profit(operation_class: "Operation") -> None:
@@ -1692,11 +1733,14 @@ def __backtest_account_update_equity(operation_class: "Operation") -> None:
     account_data.equity = round(account_data.balance + account_data.profit, 2)
 
     # Log equity update
-    logging.info(
+    message = (
         f"[EQUITY UPDATE] Balance: {account_data.balance:.2f}, "
         f"Profit/Loss Open: {account_data.profit:.2f}, "
         f"Equity: {account_data.equity:.2f}"
     )
+    if getattr(account_data, "_last_equity_log", None) != message:
+        logging.info(message)
+        setattr(account_data, "_last_equity_log", message)
 
 
 def __backtest_account_update_margin(operation_class: "Operation") -> None:
@@ -1786,10 +1830,13 @@ def __backtest_account_update_margin(operation_class: "Operation") -> None:
         )  # When there's no margin used, the margin level is infinite
 
     # Margin information logs
-    logging.info(
+    margin_message = (
         f"[UPDATED MARGIN] Used Margin: {account_data.margin:.2f}, Free Margin: {account_data.margin_free:.2f}, "
         f"Margin Level: {account_data.margin_level:.2f}%"
     )
+    if getattr(account_data, "_last_margin_log", None) != margin_message:
+        logging.info(margin_message)
+        setattr(account_data, "_last_margin_log", margin_message)
 
 
 def __backtest_account_check_margin_call(operation_class: "Operation") -> None:
@@ -1883,6 +1930,7 @@ def __backtest_account_process_stop_out(operation_class: "Operation") -> None:
             operation_class=operation_class,
             position_ticket=position.ticket,
             comment="Stop out triggered",
+            deal_reason=ENUM_DEAL_REASON.DEAL_REASON_SO,
         )
 
         # Update margin data after each closing
@@ -2117,6 +2165,25 @@ def __process_account_new_candle_event(operation_class: "Operation"):
     Args:
         operation_class (Operation): Operation class containing account and position data.
     """
+    # Log snapshot of last candles per symbol
+    try:
+        last_candles_series = operation_class.backtest_symbols_data["last_candle"]
+        candles_log = {}
+        for symbol, candle in last_candles_series.items():
+            if candle is None:
+                candles_log[symbol] = None
+                continue
+            candles_log[symbol] = {
+                "time": str(getattr(candle, "name", None)),
+                "o": float(candle.get("open")) if "open" in candle else None,
+                "h": float(candle.get("high")) if "high" in candle else None,
+                "l": float(candle.get("low")) if "low" in candle else None,
+                "c": float(candle.get("close")) if "close" in candle else None,
+            }
+        logging.debug(f"[NEW CANDLE] last_candles snapshot: {candles_log}")
+    except Exception as e:
+        logging.debug(f"[NEW CANDLE] Unable to log last_candles: {e}")
+
     # **Process events after candle close to update orders and positions**
     __process_account_after_candle_event(operation_class=operation_class)
 
@@ -2181,9 +2248,9 @@ def decorator_backtest_position_close(func: Callable):
 
 
 def decorator_update_candles(func: Callable):
-    def check_backtest_account(*args, **kwargs):
+    def execute_process_account_new_candle_event(*args, **kwargs):
         func_return = func(*args, **kwargs)
         __process_account_new_candle_event(operation_class=args[0])
         return func_return
 
-    return check_backtest_account
+    return execute_process_account_new_candle_event
